@@ -1475,12 +1475,14 @@ class LiftDeskDatabase {
 
     const id = await this.getNextId('SETTLE');
     const now = new Date().toISOString();
+    const ref = (data.referenceNumber !== undefined ? data.referenceNumber : (data.refNumber || '')).trim();
     const record = {
       id,
       date: data.date,
       amount: Math.round(amount * 100) / 100,
       paymentMethod: data.paymentMethod || 'Cash',
-      referenceNumber: (data.referenceNumber || '').trim(),
+      referenceNumber: ref,
+      refNumber: ref,
       farmerId: (data.farmerId || '').trim(),
       remarks: (data.remarks || '').trim() || 'Settlement payment to Singke',
       type: data.type || 'SETTLEMENT',
@@ -1513,7 +1515,11 @@ class LiftDeskDatabase {
           record.amount = Math.round(amt * 100) / 100;
         }
         if (updateData.paymentMethod) record.paymentMethod = updateData.paymentMethod;
-        if (updateData.referenceNumber !== undefined) record.referenceNumber = (updateData.referenceNumber || '').trim();
+        const ref = updateData.referenceNumber !== undefined ? updateData.referenceNumber : updateData.refNumber;
+        if (ref !== undefined) {
+          record.referenceNumber = (ref || '').trim();
+          record.refNumber = (ref || '').trim();
+        }
         if (updateData.farmerId !== undefined) record.farmerId = (updateData.farmerId || '').trim();
         if (updateData.remarks !== undefined) record.remarks = (updateData.remarks || '').trim();
         record.updatedAt = new Date().toISOString();
@@ -1522,6 +1528,24 @@ class LiftDeskDatabase {
         putReq.onerror = () => reject(putReq.error);
       };
       getReq.onerror = () => reject(getReq.error);
+    });
+  }
+
+  async getSingkeSettlement(id) {
+    await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('singke_settlements', 'readonly');
+      const store = tx.objectStore('singke_settlements');
+      const req = store.get(id);
+      req.onsuccess = () => {
+        const item = req.result;
+        if (item) {
+          item.refNumber = item.refNumber || item.referenceNumber || '';
+          item.referenceNumber = item.referenceNumber || item.refNumber || '';
+        }
+        resolve(item || null);
+      };
+      req.onerror = () => reject(req.error);
     });
   }
 
@@ -1556,8 +1580,11 @@ class LiftDeskDatabase {
           const map = new Map(farmers.map(f => [f.id, f]));
           const joined = items.map(st => {
             const f = st.farmerId ? map.get(st.farmerId) : null;
+            const ref = st.refNumber || st.referenceNumber || '';
             return {
               ...st,
+              refNumber: ref,
+              referenceNumber: ref,
               farmerName: f ? f.name : (st.farmerId ? `Farmer #${st.farmerId}` : 'General Singke Account')
             };
           });
@@ -1570,6 +1597,29 @@ class LiftDeskDatabase {
         farmerReq.onerror = () => reject(farmerReq.error);
       };
       settleReq.onerror = () => reject(settleReq.error);
+    });
+  }
+
+  async updateSettlementRemarks(settlementId, remarks) {
+    return this.updateSingkeSettlement(settlementId, { remarks });
+  }
+
+  async updateLiftingRemarks(liftingId, remarks) {
+    await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction('liftings', 'readwrite');
+      const store = tx.objectStore('liftings');
+      const getReq = store.get(liftingId);
+      getReq.onsuccess = () => {
+        const lifting = getReq.result;
+        if (!lifting) return reject(new Error('Lifting not found.'));
+        lifting.remarks = (remarks || '').trim();
+        lifting.updatedAt = new Date().toISOString();
+        const putReq = store.put(lifting);
+        putReq.onsuccess = () => resolve(lifting);
+        putReq.onerror = () => reject(putReq.error);
+      };
+      getReq.onerror = () => reject(getReq.error);
     });
   }
 
@@ -1688,13 +1738,17 @@ class LiftDeskDatabase {
               startDate: startDate || 'All Time',
               endDate: endDate || 'Present',
               totalLiftingWeight: Math.round(totalLiftingWeight * 100) / 100,
+              totalWeightLifted: Math.round(totalLiftingWeight * 100) / 100,
               totalLiftingBirds,
               totalLiftingCages,
               totalLiftingAmount: Math.round(totalLiftingAmount * 100) / 100,
+              totalPayableToSingke: Math.round(totalLiftingAmount * 100) / 100,
               liftingsCount: liftings.length,
 
               totalWangkheiSalesAmount: Math.round(totalWangkheiSalesAmount * 100) / 100,
+              totalWangkheiDeductions: Math.round(totalWangkheiSalesAmount * 100) / 100,
               totalWangkheiWeight: Math.round(totalWangkheiWeight * 100) / 100,
+              wangkheiWeightSold: Math.round(totalWangkheiWeight * 100) / 100,
               totalWangkheiCages,
               wangkheiSalesCount: sales.length,
 
@@ -1749,6 +1803,7 @@ class LiftDeskDatabase {
 
                 entries.push({
                   id: `LEDGER-LIFT-${l.id}`,
+                  sourceId: l.id,
                   date: l.liftingDate,
                   createdAt: l.createdAt || l.liftingDate,
                   type: 'LIFTING_PAYABLE',
@@ -1759,6 +1814,7 @@ class LiftDeskDatabase {
                   debit: 0,
                   effect: amt,
                   referenceId: l.id,
+                  refNumber: l.id,
                   farmerId: l.farmerId,
                   farmerName,
                   description: `Farmer Lifting - ${farmerName} (${l.totalWeight} kg @ ₹${rate}/kg, ${l.totalBirds} birds)`,
@@ -1777,9 +1833,11 @@ class LiftDeskDatabase {
                 const f = lifting ? farmerMap.get(lifting.farmerId) : null;
                 const farmerName = f ? f.name : (lifting ? `Farmer #${lifting.farmerId}` : 'Wangkhei Store');
                 const amt = s.saleAmount || 0;
+                const refNum = s.invoiceNumber || s.id;
 
                 entries.push({
                   id: `LEDGER-WANGKHEI-${s.id}`,
+                  sourceId: s.id,
                   date: s.saleDate,
                   createdAt: s.createdAt || s.saleDate,
                   type: 'WANGKHEI_DEDUCTION',
@@ -1789,7 +1847,8 @@ class LiftDeskDatabase {
                   credit: 0,
                   debit: amt,
                   effect: -amt,
-                  referenceId: s.invoiceNumber,
+                  referenceId: refNum,
+                  refNumber: refNum,
                   saleId: s.id,
                   liftingId: s.liftingId,
                   farmerId: f ? f.id : '',
@@ -1810,9 +1869,11 @@ class LiftDeskDatabase {
                 const f = st.farmerId ? farmerMap.get(st.farmerId) : null;
                 const farmerName = f ? f.name : 'General Singke Account';
                 const amt = st.amount || 0;
+                const refNum = st.refNumber || st.referenceNumber || st.id;
 
                 entries.push({
                   id: `LEDGER-SETTLE-${st.id}`,
+                  sourceId: st.id,
                   date: st.date,
                   createdAt: st.createdAt || st.date,
                   type: 'OTHER_SETTLEMENT',
@@ -1822,12 +1883,13 @@ class LiftDeskDatabase {
                   credit: 0,
                   debit: amt,
                   effect: -amt,
-                  referenceId: st.referenceNumber || st.id,
+                  referenceId: refNum,
+                  refNumber: refNum,
                   settlementId: st.id,
                   farmerId: st.farmerId || '',
                   farmerName,
                   paymentMethod: st.paymentMethod,
-                  description: `Settlement to Singke via ${st.paymentMethod}${st.referenceNumber ? ' (Ref: ' + st.referenceNumber + ')' : ''}`,
+                  description: `Settlement to Singke via ${st.paymentMethod}${refNum ? ' (Ref: ' + refNum + ')' : ''}`,
                   remarks: st.remarks || 'Settlement payout to Singke',
                   entityId: st.id,
                   entityType: 'settlement'

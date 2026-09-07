@@ -2115,51 +2115,60 @@
       const heroDue = document.getElementById('singkeHeroRemainingDue');
       if (heroDue) heroDue.textContent = formatCurrency(summary.remainingDueToSingke);
 
-      // Stat Cards
+      // Stat Cards - formatCurrency only, as ₹ is already placed outside the span in index.html
       const statLiftVal = document.getElementById('singkeStatTotalLiftingAmount');
       const statLiftCount = document.getElementById('singkeStatLiftingCount');
       const statLiftWeight = document.getElementById('singkeStatTotalLiftingWeight');
-      if (statLiftVal) statLiftVal.textContent = `₹${formatCurrency(summary.totalPayableToSingke)}`;
+      const liftingPayable = summary.totalPayableToSingke !== undefined ? summary.totalPayableToSingke : summary.totalLiftingAmount;
+      if (statLiftVal) statLiftVal.textContent = formatCurrency(liftingPayable);
       if (statLiftCount) statLiftCount.textContent = `${summary.liftingsCount} liftings`;
-      if (statLiftWeight) statLiftWeight.textContent = `${formatKg(summary.totalWeightLifted)} kg`;
+      if (statLiftWeight) statLiftWeight.textContent = `${formatKg(summary.totalWeightLifted || summary.totalLiftingWeight)} kg`;
 
       const statWkDed = document.getElementById('singkeStatWangkheiDeductions');
       const statWkCount = document.getElementById('singkeStatWangkheiCount');
       const statWkWeight = document.getElementById('singkeStatWangkheiWeight');
-      if (statWkDed) statWkDed.textContent = `₹${formatCurrency(summary.totalWangkheiDeductions)}`;
+      const wangkheiDed = summary.totalWangkheiDeductions !== undefined ? summary.totalWangkheiDeductions : summary.totalWangkheiSalesAmount;
+      if (statWkDed) statWkDed.textContent = formatCurrency(wangkheiDed);
       if (statWkCount) statWkCount.textContent = `${summary.wangkheiSalesCount} sales`;
-      if (statWkWeight) statWkWeight.textContent = `${formatKg(summary.wangkheiWeightSold)} kg`;
+      if (statWkWeight) statWkWeight.textContent = `${formatKg(summary.wangkheiWeightSold || summary.totalWangkheiWeight)} kg`;
 
       const statDirectSet = document.getElementById('singkeStatDirectSettlements');
       const statSetCount = document.getElementById('singkeStatSettlementCount');
-      if (statDirectSet) statDirectSet.textContent = `₹${formatCurrency(summary.totalOtherSettlements)}`;
+      if (statDirectSet) statDirectSet.textContent = formatCurrency(summary.totalOtherSettlements);
       if (statSetCount) statSetCount.textContent = `${summary.settlementsCount} records`;
 
       const statRemDue = document.getElementById('singkeStatRemainingDue');
-      if (statRemDue) statRemDue.textContent = `₹${formatCurrency(summary.remainingDueToSingke)}`;
+      if (statRemDue) statRemDue.textContent = formatCurrency(summary.remainingDueToSingke);
 
       // Render Recent Direct Settlements Table
-      const tbody = document.getElementById('singkeRecentSettlementsTbody');
-      const empty = document.getElementById('singkeRecentSettlementsEmpty');
+      const tbody = document.getElementById('singkeSettlementsTbody') || document.getElementById('singkeRecentSettlementsTbody');
+      const empty = document.getElementById('singkeSettlementsEmpty') || document.getElementById('singkeRecentSettlementsEmpty');
+      const badge = document.getElementById('singkeSettlementListBadge') || document.getElementById('singkeRecentSettlementsBadge');
+
       if (tbody) {
         tbody.innerHTML = '';
         const settlements = await window.liftDeskDB.getSingkeSettlements(startDate, endDate);
         settlements.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
 
+        if (badge) {
+          badge.textContent = `${settlements.length} ${settlements.length === 1 ? 'entry' : 'entries'}`;
+        }
+
         if (settlements.length === 0) {
           if (empty) empty.style.display = 'block';
         } else {
           if (empty) empty.style.display = 'none';
-          settlements.slice(0, 15).forEach(s => {
+          settlements.slice(0, 20).forEach(s => {
             const tr = document.createElement('tr');
+            const refDisplay = s.refNumber || s.referenceNumber || s.id;
             tr.innerHTML = `
-              <td>${s.date}</td>
-              <td><strong>${s.refNumber || s.id}</strong></td>
-              <td>${s.farmerName ? escapeHtml(s.farmerName) : '<span style="color:var(--text-muted);">General / Singke</span>'}</td>
+              <td>${escapeHtml(s.date || '')}</td>
+              <td><strong>${escapeHtml(refDisplay)}</strong></td>
+              <td>${s.farmerName ? escapeHtml(s.farmerName) : '<span style="color:var(--text-muted);">General Singke Account</span>'}</td>
               <td>${escapeHtml(s.paymentMethod || 'Cash')}</td>
               <td style="font-weight:700;color:#047857;">₹${formatCurrency(s.amount)}</td>
               <td>
-                <span class="remarks-display" onclick="window.openEditRemarksModal('settlement', '${s.id}', '${escapeHtml(s.remarks || '')}', '${s.refNumber || s.id}', 'Settlement Payout')" title="Click to edit remarks">
+                <span class="remarks-display" onclick="window.openEditRemarksModal('settlement', '${s.id}', '${escapeHtml(s.remarks || '')}', '${escapeHtml(refDisplay)}', 'Settlement Payout')" title="Click to edit remarks">
                   ${s.remarks ? escapeHtml(s.remarks) : '<span style="color:var(--text-muted);font-style:italic;">+ Add note</span>'} ✏️
                 </span>
               </td>
@@ -2188,18 +2197,18 @@
     const farmerInput = document.getElementById('selectQuickSettleFarmer');
     const remarksInput = document.getElementById('inputQuickSettleRemarks');
 
-    const amount = parseFloat(amountInput.value);
+    const amount = parseFloat(amountInput ? amountInput.value : '');
     if (isNaN(amount) || amount <= 0) {
       Native.showToast('Please enter a valid settlement amount greater than 0.');
-      amountInput.focus();
+      if (amountInput) amountInput.focus();
       return;
     }
 
-    const date = dateInput.value || getTodayString();
-    const paymentMethod = methodInput.value || 'Cash';
-    const refNumber = refInput.value.trim();
-    const farmerId = farmerInput.value || null;
-    const remarks = remarksInput.value.trim();
+    const date = (dateInput && dateInput.value) ? dateInput.value : getTodayString();
+    const paymentMethod = (methodInput && methodInput.value) ? methodInput.value : 'Cash';
+    const refNumber = refInput ? refInput.value.trim() : '';
+    const farmerId = (farmerInput && farmerInput.value) ? farmerInput.value : null;
+    const remarks = remarksInput ? remarksInput.value.trim() : '';
 
     try {
       const record = await window.liftDeskDB.addSingkeSettlement({
@@ -2207,6 +2216,7 @@
         amount,
         paymentMethod,
         refNumber,
+        referenceNumber: refNumber,
         farmerId,
         remarks
       });
@@ -2214,15 +2224,15 @@
       Native.showToast(`Settlement of ₹${formatCurrency(amount)} to Singke recorded!`);
 
       // Reset form fields
-      amountInput.value = '';
-      refInput.value = '';
-      farmerInput.value = '';
-      remarksInput.value = '';
-      dateInput.value = getTodayString();
+      if (amountInput) amountInput.value = '';
+      if (refInput) refInput.value = '';
+      if (farmerInput) farmerInput.value = '';
+      if (remarksInput) remarksInput.value = '';
+      if (dateInput) dateInput.value = getTodayString();
 
       // Refresh views
-      loadSingkeAccountView();
-      loadDashboard();
+      await loadSingkeAccountView();
+      await loadDashboard();
     } catch (e) {
       console.error(e);
       Native.showToast(`Failed to record settlement: ${e.message}`);
@@ -2230,16 +2240,34 @@
   }
 
   // --- MODAL SETTLEMENT HANDLERS ---
-  window.openAddSettlementModal = function () {
-    document.getElementById('modalSettleId').value = '';
-    document.getElementById('modalSettleDate').value = getTodayString();
-    document.getElementById('modalSettleAmount').value = '';
-    document.getElementById('modalSettleMethod').value = 'Cash';
-    document.getElementById('modalSettleRef').value = '';
-    document.getElementById('modalSettleFarmer').value = '';
-    document.getElementById('modalSettleRemarks').value = '';
-    document.getElementById('modalSettlementTitle').textContent = 'Record Singke Payout / Settlement';
-    document.getElementById('btnDeleteModalSettlement').style.display = 'none';
+  window.openAddSettlementModal = async function () {
+    try {
+      await populateSingkeFarmersDropdowns();
+    } catch (e) {
+      console.warn(e);
+    }
+
+    const idEl = document.getElementById('modalSettleId');
+    if (idEl) idEl.value = '';
+    const dateEl = document.getElementById('modalSettleDate');
+    if (dateEl) dateEl.value = getTodayString();
+    const amtEl = document.getElementById('modalSettleAmount');
+    if (amtEl) amtEl.value = '';
+    const methodEl = document.getElementById('modalSettleMethod');
+    if (methodEl) methodEl.value = 'Cash';
+    const refEl = document.getElementById('modalSettleRef');
+    if (refEl) refEl.value = '';
+    const farmerEl = document.getElementById('modalSettleFarmer');
+    if (farmerEl) farmerEl.value = '';
+    const remEl = document.getElementById('modalSettleRemarks');
+    if (remEl) remEl.value = '';
+
+    const titleEl = document.getElementById('modalSingkeSettlementTitle') || document.getElementById('modalSettlementTitle');
+    if (titleEl) titleEl.textContent = 'Record Singke Payout / Settlement';
+
+    const btnDel = document.getElementById('btnDeleteModalSettlement');
+    if (btnDel) btnDel.style.display = 'none';
+
     openModal('modalSingkeSettlement');
   };
 
@@ -2250,15 +2278,41 @@
         Native.showToast('Settlement record not found.');
         return;
       }
-      document.getElementById('modalSettleId').value = s.id;
-      document.getElementById('modalSettleDate').value = s.date || getTodayString();
-      document.getElementById('modalSettleAmount').value = s.amount;
-      document.getElementById('modalSettleMethod').value = s.paymentMethod || 'Cash';
-      document.getElementById('modalSettleRef').value = s.refNumber || '';
-      document.getElementById('modalSettleFarmer').value = s.farmerId || '';
-      document.getElementById('modalSettleRemarks').value = s.remarks || '';
-      document.getElementById('modalSettlementTitle').textContent = `Edit Settlement (${s.refNumber || s.id})`;
-      document.getElementById('btnDeleteModalSettlement').style.display = 'inline-block';
+
+      try {
+        await populateSingkeFarmersDropdowns();
+      } catch (e) {
+        console.warn(e);
+      }
+
+      const idEl = document.getElementById('modalSettleId');
+      if (idEl) idEl.value = s.id;
+      const dateEl = document.getElementById('modalSettleDate');
+      if (dateEl) dateEl.value = s.date || getTodayString();
+      const amtEl = document.getElementById('modalSettleAmount');
+      if (amtEl) amtEl.value = s.amount;
+      const methodEl = document.getElementById('modalSettleMethod');
+      if (methodEl) methodEl.value = s.paymentMethod || 'Cash';
+      const refEl = document.getElementById('modalSettleRef');
+      const refVal = s.refNumber || s.referenceNumber || '';
+      if (refEl) refEl.value = refVal;
+      const farmerEl = document.getElementById('modalSettleFarmer');
+      if (farmerEl) farmerEl.value = s.farmerId || '';
+      const remEl = document.getElementById('modalSettleRemarks');
+      if (remEl) remEl.value = s.remarks || '';
+
+      const titleEl = document.getElementById('modalSingkeSettlementTitle') || document.getElementById('modalSettlementTitle');
+      if (titleEl) titleEl.textContent = `Edit Settlement (${refVal || s.id})`;
+
+      const btnDel = document.getElementById('btnDeleteModalSettlement');
+      if (btnDel) {
+        btnDel.style.display = 'inline-block';
+        btnDel.onclick = () => {
+          closeModal('modalSingkeSettlement');
+          window.confirmDeleteSettlement(s.id);
+        };
+      }
+
       openModal('modalSingkeSettlement');
     } catch (e) {
       console.error(e);
@@ -2267,16 +2321,25 @@
   };
 
   async function saveModalSettlement() {
-    const id = document.getElementById('modalSettleId').value;
-    const date = document.getElementById('modalSettleDate').value || getTodayString();
-    const amount = parseFloat(document.getElementById('modalSettleAmount').value);
-    const paymentMethod = document.getElementById('modalSettleMethod').value;
-    const refNumber = document.getElementById('modalSettleRef').value.trim();
-    const farmerId = document.getElementById('modalSettleFarmer').value || null;
-    const remarks = document.getElementById('modalSettleRemarks').value.trim();
+    const idEl = document.getElementById('modalSettleId');
+    const dateEl = document.getElementById('modalSettleDate');
+    const amtEl = document.getElementById('modalSettleAmount');
+    const methodEl = document.getElementById('modalSettleMethod');
+    const refEl = document.getElementById('modalSettleRef');
+    const farmerEl = document.getElementById('modalSettleFarmer');
+    const remEl = document.getElementById('modalSettleRemarks');
+
+    const id = idEl ? idEl.value : '';
+    const date = (dateEl && dateEl.value) ? dateEl.value : getTodayString();
+    const amount = parseFloat(amtEl ? amtEl.value : '');
+    const paymentMethod = (methodEl && methodEl.value) ? methodEl.value : 'Cash';
+    const refNumber = refEl ? refEl.value.trim() : '';
+    const farmerId = (farmerEl && farmerEl.value) ? farmerEl.value : null;
+    const remarks = remEl ? remEl.value.trim() : '';
 
     if (isNaN(amount) || amount <= 0) {
-      Native.showToast('Please enter a valid settlement amount.');
+      Native.showToast('Please enter a valid settlement amount greater than 0.');
+      if (amtEl) amtEl.focus();
       return;
     }
 
@@ -2287,6 +2350,7 @@
           amount,
           paymentMethod,
           refNumber,
+          referenceNumber: refNumber,
           farmerId,
           remarks
         });
@@ -2297,6 +2361,7 @@
           amount,
           paymentMethod,
           refNumber,
+          referenceNumber: refNumber,
           farmerId,
           remarks
         });
@@ -2304,8 +2369,8 @@
       }
 
       closeModal('modalSingkeSettlement');
-      loadSingkeAccountView();
-      loadDashboard();
+      await loadSingkeAccountView();
+      await loadDashboard();
     } catch (e) {
       console.error(e);
       Native.showToast(e.message);
@@ -2317,8 +2382,8 @@
       try {
         await window.liftDeskDB.deleteSingkeSettlement(settlementId);
         Native.showToast('Settlement record deleted.');
-        loadSingkeAccountView();
-        loadDashboard();
+        await loadSingkeAccountView();
+        await loadDashboard();
       } catch (e) {
         console.error(e);
         Native.showToast(e.message);
@@ -2740,16 +2805,28 @@
         return;
       }
 
-      document.getElementById('modalStmtFarmerName').textContent = rep.farmer.name;
-      document.getElementById('modalStmtFarmerId').textContent = rep.farmer.id;
-      document.getElementById('modalStmtFarmerPhone').textContent = rep.farmer.phone;
+      const nameEl = document.getElementById('stmtFarmerName') || document.getElementById('modalStmtFarmerName');
+      const idEl = document.getElementById('stmtFarmerId') || document.getElementById('modalStmtFarmerId');
+      const phoneEl = document.getElementById('stmtFarmerPhone') || document.getElementById('modalStmtFarmerPhone');
+      if (nameEl) nameEl.textContent = rep.farmer.name;
+      if (idEl) idEl.textContent = rep.farmer.id;
+      if (phoneEl) phoneEl.textContent = rep.farmer.phone || 'N/A';
 
-      document.getElementById('modalStmtRemainingDue').textContent = `₹${formatCurrency(rep.remainingDue)}`;
-      document.getElementById('modalStmtTotalLifting').textContent = `₹${formatCurrency(rep.totalLiftingAmount)}`;
-      document.getElementById('modalStmtWangkheiDeducted').textContent = `₹${formatCurrency(rep.totalWangkheiDeductions)}`;
-      document.getElementById('modalStmtSettled').textContent = `₹${formatCurrency(rep.totalDirectSettlements)}`;
+      const remDueEl = document.getElementById('stmtRemainingDue') || document.getElementById('modalStmtRemainingDue');
+      const liftValEl = document.getElementById('stmtTotalLiftingValue') || document.getElementById('modalStmtTotalLifting');
+      const wkDedEl = document.getElementById('stmtWangkheiDeductions') || document.getElementById('modalStmtWangkheiDeducted');
+      const directSetEl = document.getElementById('stmtDirectSettlements') || document.getElementById('modalStmtSettled');
+      const netRemEl = document.getElementById('stmtNetRemaining');
+      const liftStatsEl = document.getElementById('stmtLiftingStats');
 
-      const tbody = document.getElementById('modalStmtLedgerTbody');
+      if (remDueEl) remDueEl.textContent = `₹${formatCurrency(rep.remainingDue)}`;
+      if (liftValEl) liftValEl.textContent = `₹${formatCurrency(rep.totalLiftingAmount)}`;
+      if (wkDedEl) wkDedEl.textContent = `− ₹${formatCurrency(rep.totalWangkheiDeductions)}`;
+      if (directSetEl) directSetEl.textContent = `− ₹${formatCurrency(rep.totalDirectSettlements)}`;
+      if (netRemEl) netRemEl.textContent = `₹${formatCurrency(rep.remainingDue)}`;
+      if (liftStatsEl) liftStatsEl.textContent = `${formatKg(rep.totalLiftingWeight || 0)} kg, ${rep.totalLiftingBirds || 0} birds`;
+
+      const tbody = document.getElementById('stmtTimelineTbody') || document.getElementById('modalStmtLedgerTbody');
       const empty = document.getElementById('modalStmtEmpty');
 
       if (tbody) {
@@ -2760,8 +2837,10 @@
           if (empty) empty.style.display = 'none';
           rep.timeline.forEach(item => {
             const tr = document.createElement('tr');
-            const plus = item.type === 'LIFTING' ? `<strong style="color:#1E40AF;">+₹${formatCurrency(item.amount)}</strong>` : '--';
-            const minus = item.type !== 'LIFTING' ? `<strong style="color:#047857;">-₹${formatCurrency(item.amount)}</strong>` : '--';
+            const isPlus = item.type === 'LIFTING';
+            const amountHtml = isPlus
+              ? `<strong style="color:#1E40AF;">+₹${formatCurrency(item.amount)}</strong>`
+              : `<strong style="color:#047857;">-₹${formatCurrency(item.amount)}</strong>`;
             const balanceColor = item.balance > 0 ? '#DC2626' : '#16A34A';
 
             let typeLabel = 'Lifting Payable';
@@ -2770,11 +2849,10 @@
 
             tr.innerHTML = `
               <td>${item.date}</td>
-              <td><strong>${item.ref}</strong></td>
               <td><span style="font-size:12px;font-weight:600;">${typeLabel}</span></td>
+              <td><strong>${item.ref}</strong></td>
               <td>${escapeHtml(item.details)}</td>
-              <td style="text-align:right;">${plus}</td>
-              <td style="text-align:right;">${minus}</td>
+              <td style="text-align:right;">${amountHtml}</td>
               <td style="text-align:right;font-weight:800;color:${balanceColor};">₹${formatCurrency(item.balance)}</td>
               <td>${item.remarks ? escapeHtml(item.remarks) : '<span style="color:var(--text-muted);">--</span>'}</td>
             `;
@@ -2827,18 +2905,28 @@
 
   // --- MODAL EDIT REMARKS CONTROLLER ---
   window.openEditRemarksModal = function (entityType, entityId, currentRemarks, refText, subText) {
-    document.getElementById('editRemarksTargetType').value = entityType;
-    document.getElementById('editRemarksTargetId').value = entityId;
-    document.getElementById('editRemarksRefDisplay').textContent = refText || entityId;
-    document.getElementById('editRemarksSubDisplay').textContent = subText || '';
-    document.getElementById('inputEditRemarksText').value = currentRemarks || '';
+    const typeEl = document.getElementById('editRemarksEntityType') || document.getElementById('editRemarksTargetType');
+    const idEl = document.getElementById('editRemarksEntityId') || document.getElementById('editRemarksTargetId');
+    const refEl = document.getElementById('editRemarksRefText') || document.getElementById('editRemarksRefDisplay');
+    const subEl = document.getElementById('editRemarksSubText') || document.getElementById('editRemarksSubDisplay');
+    const inputEl = document.getElementById('inputEditRemarksText');
+
+    if (typeEl) typeEl.value = entityType;
+    if (idEl) idEl.value = entityId;
+    if (refEl) refEl.textContent = refText || entityId;
+    if (subEl) subEl.textContent = subText || '';
+    if (inputEl) inputEl.value = currentRemarks || '';
     openModal('modalEditRemarks');
   };
 
   async function saveEditedRemarks() {
-    const type = document.getElementById('editRemarksTargetType').value;
-    const id = document.getElementById('editRemarksTargetId').value;
-    const remarks = document.getElementById('inputEditRemarksText').value.trim();
+    const typeEl = document.getElementById('editRemarksEntityType') || document.getElementById('editRemarksTargetType');
+    const idEl = document.getElementById('editRemarksEntityId') || document.getElementById('editRemarksTargetId');
+    const inputEl = document.getElementById('inputEditRemarksText');
+
+    const type = typeEl ? typeEl.value : '';
+    const id = idEl ? idEl.value : '';
+    const remarks = inputEl ? inputEl.value.trim() : '';
 
     try {
       if (type === 'lifting') {
@@ -2854,11 +2942,11 @@
 
       // Refresh whatever view is currently visible
       if (state.currentView === 'viewSingkeAccount') {
-        loadSingkeAccountView();
+        await loadSingkeAccountView();
       } else if (state.currentView === 'viewLifting') {
-        loadLiftingHistory();
+        await loadLiftingHistory();
       } else if (state.currentView === 'viewSales') {
-        loadSalesInvoices();
+        await loadSalesInvoices();
       }
     } catch (e) {
       console.error(e);
@@ -2875,11 +2963,16 @@
         return;
       }
 
-      document.getElementById('editLiftingId').value = lifting.id;
-      document.getElementById('editLiftingFarmerDisplay').textContent = `${lifting.farmerName} (${lifting.id})`;
-      document.getElementById('editLiftingStatsDisplay').textContent = `${lifting.liftingDate} | ${lifting.totalCages} cages | ${formatKg(lifting.totalWeight)} kg | ${lifting.totalBirds} birds`;
-      document.getElementById('inputEditLiftingRate').value = lifting.liftingRate || '';
-      document.getElementById('inputEditLiftingRemarks').value = lifting.remarks || '';
+      const idEl = document.getElementById('editLiftingId');
+      if (idEl) idEl.value = lifting.id;
+      const farmerEl = document.getElementById('editLiftingDetailsHeader') || document.getElementById('editLiftingFarmerDisplay');
+      const statsEl = document.getElementById('editLiftingWeightSub') || document.getElementById('editLiftingStatsDisplay');
+      if (farmerEl) farmerEl.textContent = `${lifting.farmerName || 'Farmer'} (${lifting.id})`;
+      if (statsEl) statsEl.textContent = `${lifting.liftingDate} | ${lifting.totalCages} cages | ${formatKg(lifting.totalWeight)} kg | ${lifting.totalBirds} birds`;
+      const rateInput = document.getElementById('inputEditLiftingRate');
+      if (rateInput) rateInput.value = lifting.liftingRate || '';
+      const remInput = document.getElementById('inputEditLiftingRemarks');
+      if (remInput) remInput.value = lifting.remarks || '';
 
       openModal('modalEditLiftingRate');
     } catch (e) {
@@ -3634,8 +3727,25 @@
       btnOpenAddSettlementModal.onclick = () => window.openAddSettlementModal();
     }
 
+    const btnHeroRecordSettlement = document.getElementById('btnHeroRecordSettlement');
+    if (btnHeroRecordSettlement) {
+      btnHeroRecordSettlement.onclick = () => window.openAddSettlementModal();
+    }
+
+    // Ledger Filter Chips
+    document.querySelectorAll('#viewSingkeAccount .filter-chip[data-filter]').forEach(chip => {
+      chip.onclick = () => {
+        document.querySelectorAll('#viewSingkeAccount .filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        state.singkeFilter.ledgerType = chip.getAttribute('data-filter') || 'all';
+        const typeSelect = document.getElementById('singkeLedgerFilterType') || document.getElementById('selectLedgerType');
+        if (typeSelect) typeSelect.value = state.singkeFilter.ledgerType;
+        renderSingkeLedger();
+      };
+    });
+
     // Singke Ledger Filter & Search
-    const singkeLedgerFilterType = document.getElementById('singkeLedgerFilterType');
+    const singkeLedgerFilterType = document.getElementById('singkeLedgerFilterType') || document.getElementById('selectLedgerType');
     if (singkeLedgerFilterType) {
       singkeLedgerFilterType.addEventListener('change', (e) => {
         state.singkeFilter.ledgerType = e.target.value;
@@ -3646,6 +3756,14 @@
     const singkeLedgerSearch = document.getElementById('singkeLedgerSearch');
     if (singkeLedgerSearch) {
       singkeLedgerSearch.addEventListener('input', (e) => {
+        state.singkeFilter.ledgerSearch = e.target.value;
+        renderSingkeLedger();
+      });
+    }
+
+    const inputLedgerSearch = document.getElementById('inputLedgerSearch');
+    if (inputLedgerSearch) {
+      inputLedgerSearch.addEventListener('input', (e) => {
         state.singkeFilter.ledgerSearch = e.target.value;
         renderSingkeLedger();
       });
@@ -3705,6 +3823,13 @@
     if (btnReportActionExcel) btnReportActionExcel.onclick = exportSingkeLedgerToExcel;
 
     // Modal Actions
+    const formModalSingkeSettlement = document.getElementById('formModalSingkeSettlement');
+    if (formModalSingkeSettlement) {
+      formModalSingkeSettlement.onsubmit = (e) => {
+        e.preventDefault();
+        saveModalSettlement();
+      };
+    }
     const btnSaveModalSettlement = document.getElementById('btnSaveModalSettlement');
     if (btnSaveModalSettlement) btnSaveModalSettlement.onclick = saveModalSettlement;
 
@@ -3719,9 +3844,23 @@
       };
     }
 
+    const formModalEditRemarks = document.getElementById('formModalEditRemarks');
+    if (formModalEditRemarks) {
+      formModalEditRemarks.onsubmit = (e) => {
+        e.preventDefault();
+        saveEditedRemarks();
+      };
+    }
     const btnSaveEditedRemarks = document.getElementById('btnSaveEditedRemarks');
     if (btnSaveEditedRemarks) btnSaveEditedRemarks.onclick = saveEditedRemarks;
 
+    const formModalEditLiftingRate = document.getElementById('formModalEditLiftingRate');
+    if (formModalEditLiftingRate) {
+      formModalEditLiftingRate.onsubmit = (e) => {
+        e.preventDefault();
+        saveEditedLiftingRate();
+      };
+    }
     const btnSaveEditedLiftingRate = document.getElementById('btnSaveEditedLiftingRate');
     if (btnSaveEditedLiftingRate) btnSaveEditedLiftingRate.onclick = saveEditedLiftingRate;
 

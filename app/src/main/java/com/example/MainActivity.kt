@@ -70,6 +70,10 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
 
+    // Pre-create WebView cache directories to prevent Chromium simple_file_enumerator opendir
+    // and simple_index_file disk reconstruction errors on startup
+    ensureWebViewCacheDirs()
+
     onBackPressedDispatcher.addCallback(
         this,
         object : OnBackPressedCallback(true) {
@@ -241,6 +245,18 @@ class MainActivity : ComponentActivity() {
     } catch (e: Exception) {
       Toast.makeText(this, "Could not open link: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
       false
+    }
+  }
+
+  private fun ensureWebViewCacheDirs() {
+    try {
+      val baseCache = File(cacheDir, "WebView/Default/HTTP Cache/Code Cache")
+      val wasmDir = File(baseCache, "wasm")
+      val jsDir = File(baseCache, "js")
+      if (!wasmDir.exists()) wasmDir.mkdirs()
+      if (!jsDir.exists()) jsDir.mkdirs()
+    } catch (e: Exception) {
+      Log.w("LiftDeskWeb", "Notice while ensuring WebView cache directories: ${e.message}")
     }
   }
 
