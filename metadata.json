@@ -1,0 +1,6 @@
+{
+  "name": "MPF LiftDesk",
+  "description": "Broiler Lifting, Wangkhei Store Auto-Deductions & Singke Settlement Accounting System",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

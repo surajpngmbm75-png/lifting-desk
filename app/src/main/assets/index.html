@@ -1,0 +1,2118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>MPF LiftDesk</title>
+  <link rel="stylesheet" href="css/style.css">
+  <!-- Offline SheetJS for full Excel .xlsx Import and Export -->
+  <script src="js/xlsx.full.min.js"></script>
+</head>
+<body>
+  <div id="app">
+    <!-- HEADER -->
+    <header class="app-header">
+      <div class="header-brand-row">
+        <div class="header-brand">
+          <div class="header-logo-icon">🐓</div>
+          <div class="header-titles">
+            <div class="brand-title">MPF LiftDesk</div>
+            <div class="brand-subtitle">Broiler Lifting &amp; Supply</div>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
+          <span class="beta-badge">BETA MODE</span>
+          <span style="font-size:10px;font-family:monospace;color:var(--text-light);">v2.4.1</span>
+        </div>
+      </div>
+      <div class="header-meta">
+        <div class="header-clock-box">
+          <div class="header-date-tag">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2z"></path></svg>
+            <span id="headerDate">Loading...</span>
+          </div>
+          <div class="header-time-tag">
+            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            <span id="headerTime">--:--:--</span>
+          </div>
+        </div>
+        <button id="btnHeaderLock" class="btn-icon-header" title="Lock App" style="display:none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- MAIN VIEWS CONTAINER -->
+    <main class="main-content">
+
+      <!-- ========================================== -->
+      <!-- VIEW 1: HOME / OPERATIONAL DASHBOARD      -->
+      <!-- ========================================== -->
+      <section id="viewHome" class="view-section active">
+        <div class="page-head">
+          <div class="page-title-box">
+            <h1>Operational Dashboard</h1>
+            <p>Real-time poultry lifting, store supply &amp; reconciliation overview</p>
+          </div>
+          <button class="btn btn-primary btn-sm" id="btnRefreshDashboard">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"></path><path d="M1 20v-6h6"></path>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Refresh
+          </button>
+        </div>
+
+        <!-- Dashboard Date-Range Filter Bar -->
+        <div class="card" style="margin-bottom: 16px; padding: 14px;">
+          <div class="dash-filter-container" style="margin-top: 0;">
+            <div class="dash-filter-header">
+              <span style="font-size: 13px; font-weight: 700; color: #475569; text-transform: uppercase; letter-spacing: 0.5px;">Dashboard Period:</span>
+              <!-- Preset Chips -->
+              <div class="dash-filter-presets">
+                <button type="button" class="dash-filter-chip active" id="dashPresetToday" data-preset="today">Today</button>
+                <button type="button" class="dash-filter-chip" id="dashPresetYesterday" data-preset="yesterday">Yesterday</button>
+                <button type="button" class="dash-filter-chip" id="dashPresetLast7" data-preset="last7">Last 7 Days</button>
+                <button type="button" class="dash-filter-chip" id="dashPresetThisMonth" data-preset="thisMonth">This Month</button>
+                <button type="button" class="dash-filter-chip" id="dashPresetAll" data-preset="all">All Time</button>
+              </div>
+            </div>
+
+            <!-- Date Range Inputs -->
+            <div class="dash-filter-inputs-row">
+              <div class="dash-filter-input-wrap">
+                <span class="dash-filter-label">From:</span>
+                <input type="date" id="dashFilterStartDate" class="dash-filter-date-input" aria-label="Start Date">
+              </div>
+              <div class="dash-filter-input-wrap">
+                <span class="dash-filter-label">To:</span>
+                <input type="date" id="dashFilterEndDate" class="dash-filter-date-input" aria-label="End Date">
+              </div>
+              <div class="dash-filter-actions">
+                <button type="button" id="dashFilterApplyBtn" class="btn btn-primary btn-sm">Filter</button>
+                <button type="button" id="dashFilterResetBtn" class="btn btn-outline btn-sm">Reset</button>
+              </div>
+            </div>
+
+            <!-- Filter Summary Strip -->
+            <div id="dashFilterSummaryStrip" class="dash-summary-strip">
+              <span class="dash-summary-item">Scope: <strong id="dashSumRange">Today</strong></span>
+              <span class="dash-summary-item">Lifted: <strong id="dashSumCages">0</strong> cages (<strong id="dashSumWeight">0.00</strong> kg)</span>
+              <span class="dash-summary-item">Sales: <strong id="dashSumSales">₹0.00</strong></span>
+              <span class="dash-summary-item">Net Due: <strong id="dashSumOutstanding">₹0.00</strong></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dynamic Metric Cards (stats-grid-4) -->
+        <div class="stats-grid-4">
+          <div class="stat-card primary">
+            <div class="stat-header">
+              <span class="stat-label" id="dashLabelCages">Cages Lifted (Today)</span>
+              <div class="stat-icon">📦</div>
+            </div>
+            <div class="stat-value" id="dashTodayCages">0</div>
+            <div class="stat-sub" id="dashSubCages">From today's liftings</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-header">
+              <span class="stat-label" id="dashLabelWeight">Total Weight (Today)</span>
+              <div class="stat-icon">⚖️</div>
+            </div>
+            <div class="stat-value"><span id="dashTodayWeight">0.00</span> <span style="font-size:14px;font-weight:600;">kg</span></div>
+            <div class="stat-sub" id="dashSubWeight">Live bird weight lifted</div>
+          </div>
+          <div class="stat-card emerald">
+            <div class="stat-header">
+              <span class="stat-label" id="dashLabelSales">Sales (Today)</span>
+              <div class="stat-icon">💰</div>
+            </div>
+            <div class="stat-value">₹<span id="dashTodaySales">0.00</span></div>
+            <div class="stat-sub" id="dashSubSales">Total billed to stores</div>
+          </div>
+          <div class="stat-card rose">
+            <div class="stat-header">
+              <span class="stat-label" id="dashLabelOutstanding">Store Outstanding</span>
+              <div class="stat-icon">📊</div>
+            </div>
+            <div class="stat-value">₹<span id="dashStoreOutstanding">0.00</span></div>
+            <div class="stat-sub" id="dashSubOutstanding">Total receivables</div>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions-bar">
+          <div class="btn-quick-action" id="qaNewLifting">
+            <div class="qa-icon qa-lifting">📦</div>
+            <div class="qa-text">
+              <span class="qa-title">New Lifting</span>
+              <span class="qa-desc">Add cages &amp; weight</span>
+            </div>
+          </div>
+          <div class="btn-quick-action" id="qaNewSale">
+            <div class="qa-icon qa-sale">🏷️</div>
+            <div class="qa-text">
+              <span class="qa-title">New Sale</span>
+              <span class="qa-desc">Bill to store</span>
+            </div>
+          </div>
+          <div class="btn-quick-action" id="qaFarmers">
+            <div class="qa-icon qa-farmer">👨‍🌾</div>
+            <div class="qa-text">
+              <span class="qa-title">Farmers</span>
+              <span class="qa-desc">Central Master</span>
+            </div>
+          </div>
+          <div class="btn-quick-action" id="qaSingkeAccount" style="border-left: 3px solid #6366F1;">
+            <div class="qa-icon" style="background:#EEF2FF; color:#4F46E5;">🤝</div>
+            <div class="qa-text">
+              <span class="qa-title">Singke A/C</span>
+              <span class="qa-desc">Wangkhei &amp; Settlements</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- SINGKE & WANGKHEI ACCOUNTING OVERVIEW CARD -->
+        <div class="card" style="border: 1px solid #E2E8F0; background: linear-gradient(135deg, #FFFFFF 0%, #F8FAFC 100%); margin-bottom: 16px;">
+          <div class="card-title" style="margin-bottom:12px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:20px;">🤝</span>
+              <div>
+                <span style="font-weight:800;color:var(--text-main);font-size:15px;">Singke &amp; Wangkhei Settlement</span>
+                <div style="font-size:11px;color:var(--text-muted);font-weight:normal;">Farmer lifting payables routed through Singke, Wangkhei sales auto-deductions</div>
+              </div>
+            </div>
+            <button type="button" class="btn btn-outline btn-sm" id="btnDashGoSingke" style="font-size:12px;">View Ledger →</button>
+          </div>
+
+          <!-- Hero Remaining Due Banner -->
+          <div style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius:12px; padding:16px; color:#FFFFFF; margin-bottom:12px;">
+            <div style="font-size:11px; text-transform:uppercase; letter-spacing:0.5px; color:#94A3B8; font-weight:700;">Remaining Due to Singke</div>
+            <div style="font-size:28px; font-weight:900; color:#F8FAFC; margin:4px 0;">₹<span id="dashSingkeRemainingDue">0.00</span></div>
+            <div style="font-size:12px; color:#CBD5E1;">
+              Formula: <span style="color:#93C5FD; font-weight:600;">Payable to Singke</span> − <span style="color:#6EE7B7; font-weight:600;">Wangkhei Deductions</span> − <span style="color:#F9A8D4; font-weight:600;">Other Settlements</span>
+            </div>
+          </div>
+
+          <!-- 3-Way Financial Balance Row -->
+          <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap:10px;">
+            <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px; padding:10px 12px;">
+              <div style="font-size:11px; color:#1E40AF; font-weight:700;">1. Payable to Singke</div>
+              <div style="font-size:16px; font-weight:800; color:#1E3A8A; margin-top:2px;">₹<span id="dashSingkePayable">0.00</span></div>
+              <div style="font-size:10px; color:#3B82F6;">From farmer liftings</div>
+            </div>
+            <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:10px; padding:10px 12px;">
+              <div style="font-size:11px; color:#065F46; font-weight:700;">2. Wangkhei Deductions</div>
+              <div style="font-size:16px; font-weight:800; color:#047857; margin-top:2px;">− ₹<span id="dashSingkeWangkhei">0.00</span></div>
+              <div style="font-size:10px; color:#10B981;">Auto-deducted sales</div>
+            </div>
+            <div style="background:#FDF2F8; border:1px solid #FBCFE8; border-radius:10px; padding:10px 12px;">
+              <div style="font-size:11px; color:#9D174D; font-weight:700;">3. Other Settlements</div>
+              <div style="font-size:16px; font-weight:800; color:#BE185D; margin-top:2px;">− ₹<span id="dashSingkeSettlements">0.00</span></div>
+              <div style="font-size:10px; color:#EC4899;">Cash / Bank payouts</div>
+            </div>
+          </div>
+
+          <div style="margin-top:12px; display:flex; gap:8px; justify-content:flex-end;">
+            <button type="button" class="btn btn-primary btn-sm" id="btnDashRecordSettlement" style="font-size:12px;">
+              + Record Payout to Singke
+            </button>
+          </div>
+        </div>
+
+        <!-- Cage Reconciliation -->
+        <div class="recon-card">
+          <div class="recon-title">
+            <span>Reconciliation</span>
+            <span class="recon-title-tag">TODAY</span>
+          </div>
+          <div class="recon-body">
+            <div class="recon-grid">
+              <div class="recon-item">
+                <div class="recon-item-label">Total Lifted</div>
+                <div class="recon-item-val" id="reconTotalCages">0</div>
+              </div>
+              <div class="recon-item">
+                <div class="recon-item-label">Sold Cages</div>
+                <div class="recon-item-val highlight-green" id="reconSoldCages">0</div>
+              </div>
+              <div class="recon-item">
+                <div class="recon-item-label">Unsold Stock</div>
+                <div class="recon-item-val highlight-gold" id="reconRemainingCages">0</div>
+              </div>
+              <div class="recon-item">
+                <div class="recon-item-label">Est. Weight</div>
+                <div class="recon-item-val highlight-gold"><span id="reconRemainingWeight">0.00</span> kg</div>
+              </div>
+            </div>
+            <!-- Sales Velocity / Progress Bar from theme -->
+            <div class="recon-velocity-bar">
+              <div class="velocity-header">
+                <span>Sales Velocity</span>
+                <span id="dashSalesVelocityText">0% Sold</span>
+              </div>
+              <div class="velocity-track">
+                <div class="velocity-fill" id="dashSalesVelocityFill" style="width: 0%;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Today's Lifting Activity Table -->
+        <div class="card">
+          <div class="card-title">
+            <span id="dashActivityHeading">Lifting Activity (Today)</span>
+            <span class="badge" id="dashTodayCountBadge" style="font-size:12px;background:#F1F5F9;padding:2px 8px;border-radius:12px;">0 liftings</span>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table-custom" id="dashActivityTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Lifting ID</th>
+                  <th>Farmer</th>
+                  <th>Cages</th>
+                  <th>Total Weight</th>
+                  <th>Birds</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="dashActivityTbody">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+          <div id="dashActivityEmpty" class="empty-state" style="display:none;">
+            <div class="empty-state-icon">🚜</div>
+            <h3 id="dashActivityEmptyTitle">No liftings recorded today</h3>
+            <p id="dashActivityEmptyDesc">Tap "New Lifting" to record your first broiler lifting of the day.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 2: LIFTING MODULE                     -->
+      <!-- ========================================== -->
+      <section id="viewLifting" class="view-section">
+        <div class="page-head">
+          <div class="page-title-box">
+            <h1>Broiler Lifting Management</h1>
+            <p>Record multi-cage bird weights directly linked to Farmer Master</p>
+          </div>
+        </div>
+
+        <!-- Segmented Tabs -->
+        <div class="tab-pills">
+          <button class="tab-pill active" id="tabLiftingNew" data-tab="new">New Lifting Entry</button>
+          <button class="tab-pill" id="tabLiftingHistory" data-tab="history">Lifting History</button>
+        </div>
+
+        <!-- NEW LIFTING FORM PANEL -->
+        <div id="panelLiftingNew">
+          <div class="card">
+            <div class="card-title">
+              <span id="liftingFormHeader">Enter Lifting Details</span>
+              <button class="btn btn-outline btn-sm" id="btnResetLiftingForm" type="button">Reset Form</button>
+            </div>
+
+            <!-- Farmer Selection Field (STRICTLY FROM FARMER MASTER) -->
+            <div class="form-group">
+              <label class="form-label">Farmer <span class="required">*</span></label>
+              <div id="liftingFarmerDisplay" style="display:none;background:#EFF6FF;border:1px solid #BFDBFE;padding:10px 14px;border-radius:12px;margin-bottom:8px;align-items:center;justify-content:space-between;">
+                <div>
+                  <div style="font-weight:800;color:#1E3A8A;font-size:15px;" id="selectedFarmerName">--</div>
+                  <div style="font-size:12px;color:#3B82F6;">ID: <span id="selectedFarmerId">--</span> | Phone: <span id="selectedFarmerPhone">--</span></div>
+                </div>
+                <button type="button" class="btn btn-outline btn-sm" id="btnChangeFarmer" style="background:#FFFFFF;">Change</button>
+              </div>
+
+              <div id="liftingFarmerSelectBox">
+                <div style="display:flex;gap:8px;">
+                  <button type="button" class="btn btn-outline" id="btnOpenFarmerSelector" style="flex:1;justify-content:space-between;text-align:left;">
+                    <span id="farmerSelectorPrompt">🔍 Search &amp; Select Farmer from Master...</span>
+                    <span>▼</span>
+                  </button>
+                  <button type="button" class="btn btn-gold" id="btnQuickRegisterFromLifting" title="Register New Farmer">
+                    + New Farmer
+                  </button>
+                </div>
+                <div class="form-hint">Every lifting is permanently linked to the central Farmer Master database.</div>
+              </div>
+            </div>
+
+            <!-- Lifting Date & Rate -->
+            <div class="form-row-2">
+              <div class="form-group">
+                <label class="form-label" for="inputLiftingDate">Lifting Date <span class="required">*</span></label>
+                <input type="date" id="inputLiftingDate" class="form-input" required>
+              </div>
+              <div class="form-group">
+                <label class="form-label" for="inputLiftingRate">Farmer Lifting Rate (₹ / kg) <span class="required">*</span></label>
+                <input type="number" id="inputLiftingRate" class="form-input" placeholder="e.g. 115" step="0.5" min="0">
+                <div class="form-hint">Rate per kg for calculating amount payable to Singke</div>
+              </div>
+            </div>
+
+            <!-- Remarks / Notes -->
+            <div class="form-group">
+              <label class="form-label" for="inputLiftingRemarks">Payment Remarks / Lifting Notes</label>
+              <input type="text" id="inputLiftingRemarks" class="form-input" placeholder="e.g. Broiler Batch #1 lifting, payable via Singke">
+            </div>
+
+            <!-- Multi-Cage Builder -->
+            <div class="cage-builder-box">
+              <div style="font-size:14px;font-weight:700;color:var(--text-main);margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+                <span>Add Cages for this Lifting</span>
+                <span style="font-size:12px;color:var(--text-muted);">Unique Cage # required</span>
+              </div>
+
+              <div class="form-row-3">
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label class="form-label" for="inputCageNumber">Cage Number <span class="required">*</span></label>
+                  <input type="text" id="inputCageNumber" class="form-input" placeholder="e.g. C-1 or 1">
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label class="form-label" for="inputCageWeight">Bird Weight (kg) <span class="required">*</span></label>
+                  <input type="number" id="inputCageWeight" class="form-input" placeholder="0.00" step="0.01" min="0.1">
+                </div>
+                <div class="form-group" style="margin-bottom:8px;">
+                  <label class="form-label" for="inputCageBirds">Bird Count <span class="required">*</span></label>
+                  <input type="number" id="inputCageBirds" class="form-input" placeholder="e.g. 24" step="1" min="1">
+                </div>
+              </div>
+
+              <div style="margin-top:6px;display:flex;justify-content:flex-end;">
+                <button type="button" class="btn btn-success" id="btnAddCageToList">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
+                  Add Cage to Lifting
+                </button>
+              </div>
+
+              <!-- Live Current Lifting Summary -->
+              <div class="lifting-live-summary" style="margin-top:14px;">
+                <div class="live-summary-item">
+                  <span class="live-summary-label">Total Cages</span>
+                  <span class="live-summary-val" id="summaryCageCount">0</span>
+                </div>
+                <div class="live-summary-item">
+                  <span class="live-summary-label">Total Weight</span>
+                  <span class="live-summary-val"><span id="summaryTotalWeight">0.00</span> kg</span>
+                </div>
+                <div class="live-summary-item">
+                  <span class="live-summary-label">Total Birds</span>
+                  <span class="live-summary-val" id="summaryTotalBirds">0</span>
+                </div>
+                <div class="live-summary-item">
+                  <span class="live-summary-label">Avg Weight / Bird</span>
+                  <span class="live-summary-val"><span id="summaryAvgBirdWeight">0.00</span> kg</span>
+                </div>
+                <div class="live-summary-item" style="background:#EFF6FF; border:1px solid #BFDBFE;">
+                  <span class="live-summary-label" style="color:#1E40AF;">Total Value (Singke Payable)</span>
+                  <span class="live-summary-val" style="color:#1E3A8A;">₹<span id="summaryTotalAmount">0.00</span></span>
+                </div>
+              </div>
+
+              <!-- List of added cages -->
+              <div class="cages-list-container" id="cagesListContainer">
+                <div id="cagesEmptyPrompt" style="text-align:center;padding:16px;color:var(--text-muted);font-size:13px;">
+                  No cages added yet. Enter Cage Number, Weight, and Bird Count above, then tap "Add Cage to Lifting".
+                </div>
+                <div id="cagesRowsList"></div>
+              </div>
+            </div>
+
+            <!-- Save Action Button -->
+            <div style="margin-top:16px;">
+              <button type="button" class="btn btn-primary" id="btnSaveLifting" style="width:100%;font-size:16px;padding:14px;">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path>
+                  <polyline points="17 21 17 13 7 13 7 21"></polyline>
+                  <polyline points="7 3 7 8 15 8"></polyline>
+                </svg>
+                Save Entire Lifting
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- LIFTING HISTORY PANEL -->
+        <div id="panelLiftingHistory" style="display:none;">
+          <div class="card">
+            <div class="card-title">
+              <span>Recent Lifting Records</span>
+              <span id="liftingHistoryCountBadge" style="font-size:12px;color:var(--text-muted);">Showing recent</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table-custom" id="liftingHistoryTable">
+                <thead>
+                  <tr>
+                    <th>Lifting ID</th>
+                    <th>Date</th>
+                    <th>Farmer</th>
+                    <th>Cages</th>
+                    <th>Total Wt (kg)</th>
+                    <th>Birds</th>
+                    <th>Rate (₹/kg)</th>
+                    <th>Lifting Value (₹)</th>
+                    <th>Payment Remarks</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="liftingHistoryTbody">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+            <div id="liftingHistoryEmpty" class="empty-state" style="display:none;">
+              <div class="empty-state-icon">📋</div>
+              <h3>No lifting history found</h3>
+              <p>Save your first broiler lifting to see the history here.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 3: FARMERS (FARMER MASTER)            -->
+      <!-- ========================================== -->
+      <section id="viewFarmers" class="view-section">
+        <div class="page-head">
+          <div class="page-title-box">
+            <h1>Farmer Master</h1>
+            <p>Authoritative central single source of truth for farmer records</p>
+          </div>
+          <button class="btn btn-gold" id="btnOpenNewFarmerModal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Register New Farmer
+          </button>
+        </div>
+
+        <!-- Fast Search Bar for 100,000+ Farmers -->
+        <div class="search-container">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="inputFarmerSearch" class="search-input" placeholder="Search by Farmer Name or Phone Number (Fast Index)..." autocomplete="off">
+          <button type="button" class="search-clear" id="btnFarmerSearchClear">✕</button>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;font-size:13px;color:var(--text-muted);">
+          <span id="farmerSearchResultsCount">Registered Farmers</span>
+          <span id="farmerSearchStatus">Indexed</span>
+        </div>
+
+        <!-- Farmer Cards List (Search-First Virtualized/Paginated Interface) -->
+        <div id="farmersListContainer">
+          <!-- Populated dynamically with high efficiency -->
+        </div>
+
+        <div id="farmersEmptyState" class="empty-state" style="display:none;">
+          <div class="empty-state-icon">👨‍🌾</div>
+          <h3 id="farmerEmptyTitle">No farmers found</h3>
+          <p id="farmerEmptyDesc">Register your first farmer or refine your search query.</p>
+        </div>
+
+        <!-- Pagination Controls -->
+        <div id="farmerPagination" style="display:none;justify-content:center;align-items:center;gap:12px;margin-top:16px;">
+          <button type="button" class="btn btn-outline btn-sm" id="btnFarmerPrevPage">◀ Previous</button>
+          <span id="farmerPageIndicator" style="font-size:13px;font-weight:600;">Page 1</span>
+          <button type="button" class="btn btn-outline btn-sm" id="btnFarmerNextPage">Next ▶</button>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 4: SALES MODULE                       -->
+      <!-- ========================================== -->
+      <section id="viewSales" class="view-section">
+        <div class="page-head">
+          <div class="page-title-box">
+            <h1>Store Sales &amp; Billing</h1>
+            <p>Sell lifted cages to stores &amp; generate invoices (Strictly no Farm Rate or Profit)</p>
+          </div>
+        </div>
+
+        <!-- Segmented Tabs -->
+        <div class="tab-pills">
+          <button class="tab-pill active" id="tabSalesNew" data-tab="new">New Store Sale</button>
+          <button class="tab-pill" id="tabSalesHistory" data-tab="history">Sales Invoices</button>
+        </div>
+
+        <!-- NEW SALE PANEL -->
+        <div id="panelSalesNew">
+          <div class="card">
+            <div class="card-title">
+              <span>Create Store Sale</span>
+              <button class="btn btn-outline btn-sm" id="btnResetSaleForm" type="button">Reset</button>
+            </div>
+
+            <!-- Store Selector -->
+            <div class="form-group">
+              <label class="form-label" for="selectSaleStore">Store Name <span class="required">*</span></label>
+              <div style="display:flex;gap:8px;">
+                <select id="selectSaleStore" class="form-select" required>
+                  <option value="">-- Select Store --</option>
+                </select>
+                <button type="button" class="btn btn-outline" id="btnQuickAddStoreFromSale" title="Add New Store">+</button>
+              </div>
+              <div id="saleStoreDueNotice" class="form-hint" style="color:var(--danger);font-weight:600;"></div>
+            </div>
+
+            <!-- Sale Date -->
+            <div class="form-group">
+              <label class="form-label" for="inputSaleDate">Sale Date <span class="required">*</span></label>
+              <input type="date" id="inputSaleDate" class="form-input" required>
+            </div>
+
+            <!-- Lifting Reference Selector -->
+            <div class="form-group">
+              <label class="form-label" for="selectSaleLifting">Lifting / Farm Reference <span class="required">*</span></label>
+              <select id="selectSaleLifting" class="form-select" required>
+                <option value="">-- Select Lifting --</option>
+              </select>
+              <div class="form-hint">Shows liftings with unsold cages available for billing.</div>
+            </div>
+
+            <!-- Cages Selection & Weighing Container -->
+            <div class="sale-cages-card" id="saleCagesContainer" style="margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:8px;">
+                <div style="display:flex;align-items:center;gap:8px;">
+                  <label class="form-label" style="margin-bottom:0;font-size:14px;font-weight:700;">Select Cages for this Invoice <span class="required">*</span></label>
+                  <span id="saleAvailableCagesBadge" class="badge" style="background:#E2E8F0;color:#334155;font-size:11px;">0 available</span>
+                </div>
+                <div style="display:flex;gap:6px;">
+                  <button type="button" class="btn btn-outline btn-sm" id="btnSaleSelectAllCages" style="padding:4px 10px;font-size:12px;">Select All Available</button>
+                  <button type="button" class="btn btn-outline btn-sm" id="btnSaleClearCages" style="padding:4px 10px;font-size:12px;">Deselect All</button>
+                </div>
+              </div>
+
+              <!-- Available Cage Chips Bar -->
+              <div id="saleAvailableCagesChipsWrap" style="margin-bottom:12px;">
+                <div style="font-size:11px;color:#64748B;margin-bottom:6px;">Tap any cage chip below to toggle selection:</div>
+                <div id="saleAvailableCagesChips" class="sale-cage-chips-list">
+                  <div style="font-size:12px;color:#94A3B8;padding:4px 0;">-- Select a lifting reference above to view available cages --</div>
+                </div>
+              </div>
+
+              <!-- Selected Cages Weighing Table -->
+              <div style="border:1px solid var(--border-color);border-radius:8px;overflow:hidden;background:#FFFFFF;">
+                <div style="background:#F8FAFC;padding:8px 12px;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+                  <span style="font-size:13px;font-weight:700;color:#334155;">Selected Cages (<span id="saleSelectedCountHeader">0</span>)</span>
+                  <span style="font-size:11px;color:#64748B;">Default lifting wt pre-filled; edit or add kg/g directly</span>
+                </div>
+                <div class="table-responsive" style="max-height:280px;overflow-y:auto;margin:0;">
+                  <table class="table-custom" id="saleSelectedCagesTable" style="margin:0;font-size:12px;">
+                    <thead>
+                      <tr>
+                        <th style="width:70px;">Cage #</th>
+                        <th style="width:55px;">Birds</th>
+                        <th style="width:85px;">Default Wt</th>
+                        <th>Invoice Wt (kg)</th>
+                        <th style="width:40px;text-align:center;">✕</th>
+                      </tr>
+                    </thead>
+                    <tbody id="saleSelectedCagesTbody">
+                      <!-- Dynamic rows for selected cages -->
+                    </tbody>
+                  </table>
+                </div>
+                <div id="saleNoCagesSelectedMsg" style="padding:18px;text-align:center;color:#94A3B8;font-size:13px;">
+                  No cages selected yet. Pick cages from above or click <strong>"Select All Available"</strong>.
+                </div>
+              </div>
+
+              <!-- Live Summary Strip of Selected Cages -->
+              <div id="saleCagesSummaryStrip" class="dash-summary-strip" style="margin-top:10px;margin-bottom:4px;padding:8px 12px;font-size:12px;background:#F1F5F9;border-radius:6px;display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between;">
+                <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:center;">
+                  <div>Cages: <strong id="saleSumCagesCount">0</strong></div>
+                  <div>Birds: <strong id="saleSumBirdsCount">0</strong></div>
+                  <div>Default Wt: <strong id="saleSumLiftedWeight">0.00</strong> kg</div>
+                  <div>Invoice Wt: <strong id="saleSumBilledWeight" style="color:var(--primary);font-size:13px;">0.00</strong> kg</div>
+                  <div id="saleSumAdjustWrap" style="display:none;">Adjusted: <span id="saleSumWeightDiff" style="font-weight:700;color:var(--primary);">+0.00 kg</span></div>
+                </div>
+                <button type="button" id="btnResetAllBilledWeights" class="btn btn-outline btn-sm" style="display:none;padding:2px 8px;font-size:11px;" title="Reset all selected cages back to default lifting weights">Reset All to Default Wt</button>
+              </div>
+            </div>
+
+            <div class="form-row-2">
+              <!-- Sales Rate per kg -->
+              <div class="form-group">
+                <label class="form-label" for="inputSaleRate">Sales Rate (₹/kg) <span class="required">*</span></label>
+                <input type="number" id="inputSaleRate" class="form-input" placeholder="e.g. 110.00" step="0.01" min="0.01" required>
+              </div>
+
+              <!-- Payment Details -->
+              <div class="form-group">
+                <label class="form-label" for="selectSalePaymentType">Payment Method</label>
+                <select id="selectSalePaymentType" class="form-select">
+                  <option value="Cash">Cash</option>
+                  <option value="UPI / Bank Transfer">UPI / Bank Transfer</option>
+                  <option value="Cheque">Cheque</option>
+                  <option value="Credit / Later">Credit / Later</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Paid Amount -->
+            <div class="form-group">
+              <label class="form-label" for="inputSalePaidAmount">Paid Amount (₹)</label>
+              <input type="number" id="inputSalePaidAmount" class="form-input" placeholder="0.00" step="0.01" min="0">
+            </div>
+
+            <!-- Live Calculation Breakdown (STRICTLY NO FARM RATE OR PROFIT) -->
+            <div class="calc-preview-card">
+              <div class="calc-line">
+                <span>Total Billed Weight × Rate:</span>
+                <span><span id="previewSaleWeight">0.00</span> kg × ₹<span id="previewSaleRate">0.00</span> (<span id="previewSaleCagesCount">0</span> cages, <span id="previewSaleBirdsCount">0</span> birds)</span>
+              </div>
+              <div class="calc-line">
+                <span style="font-weight:700;">Sale Amount:</span>
+                <span style="font-weight:700;color:var(--primary);">₹<span id="previewSaleAmount">0.00</span></span>
+              </div>
+              <div class="calc-line">
+                <span>Previous Store Due:</span>
+                <span style="color:var(--text-muted);">₹<span id="previewPreviousDue">0.00</span></span>
+              </div>
+              <div class="calc-line">
+                <span>Payment Applied:</span>
+                <span style="color:var(--success);">- ₹<span id="previewPaidAmount">0.00</span></span>
+              </div>
+              <div class="calc-line total-line outstanding-line">
+                <span>Current Outstanding:</span>
+                <span>₹<span id="previewOutstanding">0.00</span></span>
+              </div>
+            </div>
+
+            <!-- Save Sale Button -->
+            <button type="button" class="btn btn-primary" id="btnSaveSale" style="width:100%;font-size:16px;padding:14px;">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+              </svg>
+              Save Sale &amp; Generate Invoice (<span id="btnSaveSaleCagesCount">0</span> Cages)
+            </button>
+          </div>
+        </div>
+
+        <!-- SALES INVOICES HISTORY PANEL -->
+        <div id="panelSalesHistory" style="display:none;">
+          <div class="card">
+            <div class="card-title">
+              <span>Saved Sales Invoices</span>
+              <span id="salesHistoryCount" style="font-size:12px;color:var(--text-muted);">Invoices list</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table-custom" id="salesHistoryTable">
+                <thead>
+                  <tr>
+                    <th>Invoice #</th>
+                    <th>Date</th>
+                    <th>Store</th>
+                    <th>Cage</th>
+                    <th>Weight</th>
+                    <th>Rate</th>
+                    <th>Amount</th>
+                    <th>Paid</th>
+                    <th>Due</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="salesHistoryTbody">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+            <div id="salesHistoryEmpty" class="empty-state" style="display:none;">
+              <div class="empty-state-icon">🧾</div>
+              <h3>No sales invoices yet</h3>
+              <p>Create your first store sale above to generate an invoice.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 5: STORE MASTER                       -->
+      <!-- ========================================== -->
+      <section id="viewStores" class="view-section">
+        <div class="page-head">
+          <div class="page-title-box">
+            <h1>Store Master</h1>
+            <p>Manage buyer stores, WhatsApp communication &amp; due statements</p>
+          </div>
+          <button class="btn btn-primary" id="btnOpenNewStoreModal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Add New Store
+          </button>
+        </div>
+
+        <div class="search-container">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="inputStoreSearch" class="search-input" placeholder="Search stores by name or phone...">
+        </div>
+
+        <div id="storesListContainer">
+          <!-- Populated dynamically -->
+        </div>
+
+        <div id="storesEmptyState" class="empty-state" style="display:none;">
+          <div class="empty-state-icon">🏪</div>
+          <h3>No stores found</h3>
+          <p>Add your first buyer store to start recording sales transactions.</p>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 6: LEDGER (STORE DIRECT PAYMENTS)     -->
+      <!-- ========================================== -->
+      <section id="viewLedger" class="view-section">
+        <div class="page-head">
+          <div class="page-title-box">
+            <h1>Store Payment Ledger</h1>
+            <p>Record direct store payments and maintain accurate outstanding balances</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Record Direct Payment</div>
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="selectPaymentStore">Store <span class="required">*</span></label>
+              <select id="selectPaymentStore" class="form-select" required>
+                <option value="">-- Select Store --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="inputPaymentDate">Payment Date <span class="required">*</span></label>
+              <input type="date" id="inputPaymentDate" class="form-input" required>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="inputPaymentAmount">Amount (₹) <span class="required">*</span></label>
+              <input type="number" id="inputPaymentAmount" class="form-input" placeholder="0.00" step="0.01" min="0.01" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="selectPaymentMethod">Payment Method <span class="required">*</span></label>
+              <select id="selectPaymentMethod" class="form-select">
+                <option value="Cash">Cash</option>
+                <option value="UPI / Bank Transfer">UPI / Bank Transfer</option>
+                <option value="Cheque">Cheque</option>
+                <option value="RTGS / NEFT">RTGS / NEFT</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputPaymentNotes">Notes / Transaction Reference</label>
+            <input type="text" id="inputPaymentNotes" class="form-input" placeholder="e.g. UPI Ref #12345 or Cheque #98765">
+          </div>
+
+          <button type="button" class="btn btn-success" id="btnSavePayment">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Save Payment Record
+          </button>
+        </div>
+
+        <!-- Payments History -->
+        <div class="card">
+          <div class="card-title">
+            <span>Recent Payment Entries</span>
+            <span id="paymentsCountBadge" style="font-size:12px;color:var(--text-muted);">History</span>
+          </div>
+          <div class="table-responsive">
+            <table class="table-custom" id="paymentsHistoryTable">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Store</th>
+                  <th>Amount</th>
+                  <th>Method</th>
+                  <th>Reference</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody id="paymentsHistoryTbody">
+                <!-- Populated dynamically -->
+              </tbody>
+            </table>
+          </div>
+          <div id="paymentsHistoryEmpty" class="empty-state" style="display:none;">
+            <div class="empty-state-icon">💵</div>
+            <h3>No direct payments recorded yet</h3>
+            <p>Record payments above to reconcile against store outstanding balances.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 7: ACCOUNTING & REPORTS               -->
+      <!-- ========================================== -->
+      <section id="viewReports" class="view-section">
+        <div class="page-head">
+          <div class="page-title-box">
+            <h1>Accounting &amp; Reports</h1>
+            <p>Comprehensive transaction summaries, receivables &amp; print views</p>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-outline btn-sm" id="btnPrintAccountingReport">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="6 9 6 2 18 2 18 9"></polyline>
+                <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path>
+                <rect x="6" y="14" width="12" height="8"></rect>
+              </svg>
+              Print / PDF
+            </button>
+            <button class="btn btn-whatsapp btn-sm" id="btnShareAccountingWhatsApp">
+              Share WhatsApp
+            </button>
+          </div>
+        </div>
+
+        <!-- Range Filters -->
+        <div class="card" style="padding:12px;">
+          <div class="form-row-2">
+            <div class="form-group" style="margin-bottom:0;">
+              <label class="form-label">Quick Period</label>
+              <select id="selectAccountingPeriod" class="form-select">
+                <option value="this_month">This Month</option>
+                <option value="last_month">Last Month</option>
+                <option value="this_year">This Year</option>
+                <option value="all_time" selected>All Time</option>
+              </select>
+            </div>
+            <div style="display:flex;align-items:flex-end;">
+              <button type="button" class="btn btn-primary btn-sm" id="btnApplyAccountingFilter" style="width:100%;">
+                Generate Summary
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Financial Overview Cards -->
+        <div class="stats-grid-4">
+          <div class="stat-card emerald">
+            <div class="stat-header"><span class="stat-label">Sales Income</span><div class="stat-icon">📈</div></div>
+            <div class="stat-value">₹<span id="accTotalSales">0.00</span></div>
+            <div class="stat-sub">Billed store sales</div>
+          </div>
+          <div class="stat-card primary">
+            <div class="stat-header"><span class="stat-label">Payments Received</span><div class="stat-icon">💰</div></div>
+            <div class="stat-value">₹<span id="accTotalPayments">0.00</span></div>
+            <div class="stat-sub">Sales + Ledger receipts</div>
+          </div>
+          <div class="stat-card rose">
+            <div class="stat-header"><span class="stat-label">Current Outstanding</span><div class="stat-icon">⏳</div></div>
+            <div class="stat-value">₹<span id="accTotalOutstanding">0.00</span></div>
+            <div class="stat-sub">Uncollected receivables</div>
+          </div>
+          <div class="stat-card amber">
+            <div class="stat-header"><span class="stat-label">Lifting Volume</span><div class="stat-icon">⚖️</div></div>
+            <div class="stat-value"><span id="accTotalWeight">0.00</span> <span style="font-size:14px;">kg</span></div>
+            <div class="stat-sub"><span id="accTotalBirds">0</span> birds in <span id="accTotalCages">0</span> cages</div>
+          </div>
+        </div>
+
+        <!-- Summary Print Sheet -->
+        <div class="card" id="accountingPrintSheet">
+          <div style="text-align:center;border-bottom:2px solid #E2E8F0;padding-bottom:12px;margin-bottom:16px;">
+            <h2 style="font-size:18px;font-weight:800;">MPF LiftDesk</h2>
+            <div style="font-size:13px;color:var(--text-muted);">Poultry Lifting &amp; Store Supply Business Statement</div>
+            <div style="font-size:12px;font-weight:600;margin-top:4px;">Period: <span id="accPeriodLabel">All Time</span></div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px;margin-bottom:16px;">
+            <div style="background:#F8FAFC;padding:12px;border-radius:8px;">
+              <div style="font-weight:700;margin-bottom:6px;color:var(--primary);">OPERATIONAL TOTALS</div>
+              <div>Total Liftings: <strong id="accCountLiftings">0</strong></div>
+              <div>Total Cages: <strong id="accCountCages">0</strong></div>
+              <div>Total Birds: <strong id="accCountBirds">0</strong></div>
+              <div>Total Weight Lifted: <strong id="accWeightDetailed">0.00 kg</strong></div>
+            </div>
+            <div style="background:#F8FAFC;padding:12px;border-radius:8px;">
+              <div style="font-weight:700;margin-bottom:6px;color:var(--success);">FINANCIAL RECONCILIATION</div>
+              <div>Total Sales Count: <strong id="accCountSales">0</strong></div>
+              <div>Total Sales Amount: <strong id="accSalesDetailed">₹0.00</strong></div>
+              <div>Total Payments Count: <strong id="accCountPayments">0</strong></div>
+              <div>Direct Payments: <strong id="accDirectPaymentsDetailed">₹0.00</strong></div>
+              <div style="color:var(--danger);margin-top:4px;">Current Outstanding: <strong id="accDueDetailed">₹0.00</strong></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 8: SETTINGS                           -->
+      <!-- ========================================== -->
+      <section id="viewSettings" class="view-section">
+        <div class="page-head">
+          <div class="page-title-box">
+            <h1>Application Settings</h1>
+            <p>Data backup, Excel import/export &amp; security configuration</p>
+          </div>
+        </div>
+
+        <!-- PIN Security Card -->
+        <div class="card">
+          <div class="card-title">
+            <span>App PIN Protection</span>
+            <span id="pinStatusBadge" class="badge" style="font-size:11px;padding:3px 8px;border-radius:12px;background:#F1F5F9;">Disabled</span>
+          </div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+            Protect your poultry business data with a secure browser-hashed PIN.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline btn-sm" id="btnConfigurePin">Set / Change PIN</button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnLockNow" style="display:none;">Lock App Now</button>
+            <button type="button" class="btn btn-danger btn-sm" id="btnRemovePin" style="display:none;">Remove PIN</button>
+          </div>
+        </div>
+
+        <!-- Excel Import & Export Card -->
+        <div class="card">
+          <div class="card-title">Excel (.xlsx) Import &amp; Export</div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+            Export all database sheets (Farmers, Liftings, Cages, Stores, Sales, Payments) or import an existing spreadsheet.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary" id="btnExportExcel">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              Export to Excel (.xlsx)
+            </button>
+            <label class="btn btn-outline" style="cursor:pointer;margin-bottom:0;">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+              </svg>
+              Import from Excel
+              <input type="file" id="fileImportExcel" accept=".xlsx,.xls" style="display:none;">
+            </label>
+          </div>
+        </div>
+
+        <!-- JSON Backup & Restore -->
+        <div class="card">
+          <div class="card-title">Full JSON Backup &amp; Restore</div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+            Save a complete offline snapshot of all system tables.
+          </p>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-outline" id="btnExportJSON">Download JSON Backup</button>
+            <label class="btn btn-outline" style="cursor:pointer;margin-bottom:0;">
+              Restore from JSON
+              <input type="file" id="fileRestoreJSON" accept=".json" style="display:none;">
+            </label>
+            <button type="button" class="btn btn-danger btn-sm" id="btnFactoryReset" style="margin-left:auto;">Reset Data</button>
+          </div>
+        </div>
+
+        <!-- System & Database Information -->
+        <div class="card">
+          <div class="card-title">System &amp; Storage Health</div>
+          <div style="font-size:13px;line-height:1.8;color:var(--text-main);">
+            <div>Platform: <strong>Android APK (Native WebView Bridge)</strong></div>
+            <div>Database Engine: <strong>IndexedDB (MPFLiftDeskDB v2)</strong></div>
+            <div>Farmer Capacity: <strong>100,000+ Registered Farmers Supported</strong></div>
+            <div>Singke Accounting: <strong>Active &amp; Reconciled (Wangkhei Store Linked)</strong></div>
+            <div>Excel Engine: <strong>SheetJS Offline .xlsx Processor</strong></div>
+            <div>Device Time: <strong id="settingsDeviceTime">--</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ========================================== -->
+      <!-- VIEW 7: SINGKE & WANGKHEI ACCOUNTING       -->
+      <!-- ========================================== -->
+      <section id="viewSingkeAccount" class="view-section">
+        <div class="page-head">
+          <div class="page-title-box">
+            <h1>Singke &amp; Wangkhei Accounting</h1>
+            <p>Farmer lifting payables routed through Singke, Wangkhei Store auto-deductions &amp; settlements</p>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary btn-sm" id="btnOpenAddSettlementModal">
+              + Record Payout
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnSingkeExportExcel">
+              📥 Excel (.xlsx)
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnSingkePrintReport">
+              🖨️ Print / PDF
+            </button>
+            <button type="button" class="btn btn-whatsapp btn-sm" id="btnSingkeShareWhatsApp">
+              💬 WhatsApp
+            </button>
+          </div>
+        </div>
+
+        <!-- Date Filter & Quick Range Bar -->
+        <div class="card" style="padding:12px 16px; margin-bottom:14px;">
+          <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; justify-content:space-between;">
+            <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+              <span style="font-size:12px; font-weight:700; color:var(--text-muted); white-space:nowrap;">Period:</span>
+              <input type="date" id="inputSingkeStartDate" class="form-input" style="padding:6px 10px; font-size:13px; width:auto;">
+              <span style="color:var(--text-muted); font-size:12px;">to</span>
+              <input type="date" id="inputSingkeEndDate" class="form-input" style="padding:6px 10px; font-size:13px; width:auto;">
+              <button type="button" class="btn btn-primary btn-sm" id="btnSingkeApplyFilter" style="padding:6px 12px; font-size:12px;">Apply</button>
+            </div>
+            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+              <button type="button" class="btn btn-outline btn-sm" id="btnSingkeRangeAll" style="font-size:12px;">All Time</button>
+              <button type="button" class="btn btn-outline btn-sm" id="btnSingkeRangeThisMonth" style="font-size:12px;">This Month</button>
+              <button type="button" class="btn btn-outline btn-sm" id="btnSingkeRangeToday" style="font-size:12px;">Today</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Segmented Navigation Tabs -->
+        <div class="tab-pills" style="margin-bottom:14px; overflow-x:auto;">
+          <button class="tab-pill active" id="tabSingkeSummary" data-tab="summary">Overview &amp; Settlement</button>
+          <button class="tab-pill" id="tabSingkeLedger" data-tab="ledger">Singke Running Ledger</button>
+          <button class="tab-pill" id="tabSingkeWangkhei" data-tab="wangkhei">Wangkhei Store Account</button>
+          <button class="tab-pill" id="tabSingkeFarmers" data-tab="farmers">Farmer Accounts</button>
+          <button class="tab-pill" id="tabSingkeReports" data-tab="reports">Settlement Statements</button>
+        </div>
+
+        <!-- TAB 1: OVERVIEW & SETTLEMENT -->
+        <div id="panelSingkeSummary">
+          <!-- Hero Remaining Due Banner -->
+          <div style="background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%); border-radius:14px; padding:20px; color:#FFFFFF; margin-bottom:16px; box-shadow:0 4px 12px rgba(15,23,42,0.15);">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+              <div>
+                <div style="font-size:12px; text-transform:uppercase; letter-spacing:0.8px; color:#94A3B8; font-weight:700;">Remaining Balance Due to Singke</div>
+                <div style="font-size:34px; font-weight:900; color:#F8FAFC; margin:6px 0;">₹<span id="singkeHeroRemainingDue">0.00</span></div>
+                <div style="font-size:13px; color:#CBD5E1; line-height:1.6;">
+                  Formula: <span style="color:#93C5FD; font-weight:700;">Total Payable to Singke</span> − <span style="color:#6EE7B7; font-weight:700;">Wangkhei Deductions</span> − <span style="color:#F9A8D4; font-weight:700;">Other Settlements</span>
+                </div>
+              </div>
+              <button type="button" class="btn btn-gold" id="btnHeroRecordSettlement" style="padding:10px 18px; font-weight:700;">
+                + Record Settlement Payout
+              </button>
+            </div>
+          </div>
+
+          <!-- 4 Stat Metric Cards -->
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom:16px;">
+            <div class="stat-card blue">
+              <div class="stat-header">
+                <span class="stat-label">1. Total Payable to Singke</span>
+                <div class="stat-icon">🚜</div>
+              </div>
+              <div class="stat-value">₹<span id="singkeStatTotalLiftingAmount">0.00</span></div>
+              <div class="stat-sub">From <span id="singkeStatLiftingCount">0</span> farmer liftings (<span id="singkeStatTotalLiftingWeight">0.00</span> kg)</div>
+            </div>
+
+            <div class="stat-card emerald">
+              <div class="stat-header">
+                <span class="stat-label">2. Wangkhei Store Deductions</span>
+                <div class="stat-icon">🏪</div>
+              </div>
+              <div class="stat-value">− ₹<span id="singkeStatWangkheiDeductions">0.00</span></div>
+              <div class="stat-sub">Auto-deducted from <span id="singkeStatWangkheiCount">0</span> sales (<span id="singkeStatWangkheiWeight">0.00</span> kg)</div>
+            </div>
+
+            <div class="stat-card rose">
+              <div class="stat-header">
+                <span class="stat-label">3. Other Settlements Paid</span>
+                <div class="stat-icon">💳</div>
+              </div>
+              <div class="stat-value">− ₹<span id="singkeStatDirectSettlements">0.00</span></div>
+              <div class="stat-sub">Direct cash/bank payouts (<span id="singkeStatSettlementCount">0</span> entries)</div>
+            </div>
+
+            <div class="stat-card amber">
+              <div class="stat-header">
+                <span class="stat-label">Final Remaining Due</span>
+                <div class="stat-icon">⚖️</div>
+              </div>
+              <div class="stat-value">₹<span id="singkeStatRemainingDue">0.00</span></div>
+              <div class="stat-sub">Current net balance payable to Singke</div>
+            </div>
+          </div>
+
+          <!-- Quick Settlement Record Box -->
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-title">
+              <span>Record Settlement Payout to Singke</span>
+              <span class="badge" style="font-size:11px;background:#EEF2FF;color:#4338CA;padding:3px 8px;border-radius:10px;">Direct Settlement</span>
+            </div>
+            <p style="font-size:13px; color:var(--text-muted); margin-bottom:14px;">
+              Direct payout made to Singke (Cash, Bank Transfer, Cheque, or UPI). Reduces the remaining balance due to Singke.
+            </p>
+
+            <form id="formSingkeQuickSettlement">
+              <div class="form-row-3">
+                <div class="form-group">
+                  <label class="form-label" for="inputQuickSettleDate">Payment Date <span class="required">*</span></label>
+                  <input type="date" id="inputQuickSettleDate" class="form-input" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="inputQuickSettleAmount">Amount Paid (₹) <span class="required">*</span></label>
+                  <input type="number" id="inputQuickSettleAmount" class="form-input" placeholder="0.00" step="0.01" min="1" required>
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="inputQuickSettleMethod">Payment Method</label>
+                  <select id="inputQuickSettleMethod" class="form-select">
+                    <option value="Cash">Cash</option>
+                    <option value="Bank Transfer">Bank Transfer (NEFT/IMPS)</option>
+                    <option value="UPI / GPay / PhonePe">UPI / GPay / PhonePe</option>
+                    <option value="Cheque">Cheque</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-row-2">
+                <div class="form-group">
+                  <label class="form-label" for="inputQuickSettleRef">Reference / Cheque / UTR #</label>
+                  <input type="text" id="inputQuickSettleRef" class="form-input" placeholder="e.g. UTR12345678 or Cheque #9876">
+                </div>
+                <div class="form-group">
+                  <label class="form-label" for="selectQuickSettleFarmer">Linked Farmer Account (Optional)</label>
+                  <select id="selectQuickSettleFarmer" class="form-select">
+                    <option value="">General Singke Account (Not tied to specific farmer)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="inputQuickSettleRemarks">Payment Remarks / Settlement Notes</label>
+                <input type="text" id="inputQuickSettleRemarks" class="form-input" placeholder="e.g. Paid part settlement for broiler batch lifting">
+              </div>
+
+              <div style="display:flex; justify-content:flex-end;">
+                <button type="submit" class="btn btn-primary" id="btnSubmitQuickSettlement" style="padding:10px 24px;">
+                  Record Settlement Payment
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Recent Direct Settlements Table -->
+          <div class="card">
+            <div class="card-title">
+              <span>Recent Direct Settlements to Singke</span>
+              <span id="singkeSettlementListBadge" class="badge" style="font-size:12px;background:#F1F5F9;padding:2px 8px;border-radius:12px;">0 entries</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table-custom" id="singkeSettlementsTable">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Ref #</th>
+                    <th>Farmer Attribution</th>
+                    <th>Payment Method</th>
+                    <th>Amount Paid (₹)</th>
+                    <th>Remarks</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="singkeSettlementsTbody">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+            <div id="singkeSettlementsEmpty" class="empty-state" style="display:none;">
+              <div class="empty-state-icon">💳</div>
+              <h3>No direct settlements recorded yet</h3>
+              <p>When you make cash or bank payouts directly to Singke, record them above to reduce Singke's balance.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: SINGKE RUNNING LEDGER -->
+        <div id="panelSingkeLedger" style="display:none;">
+          <div class="card">
+            <div class="card-title" style="flex-wrap:wrap; gap:10px; margin-bottom:12px;">
+              <div>
+                <span>Complete Singke Running Ledger</span>
+                <div style="font-size:12px; color:var(--text-muted); font-weight:normal;">Real-time chronological audit trail of all liftings, Wangkhei deductions, and payouts</div>
+              </div>
+              <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                <button type="button" class="tab-pill active btn-sm" id="fltrLedgerAll" data-type="all" style="font-size:12px;">All Entries</button>
+                <button type="button" class="tab-pill btn-sm" id="fltrLedgerLifting" data-type="LIFTING_PAYABLE" style="font-size:12px;">Liftings Only (+Due)</button>
+                <button type="button" class="tab-pill btn-sm" id="fltrLedgerWangkhei" data-type="WANGKHEI_DEDUCTION" style="font-size:12px;">Wangkhei Sales (-Due)</button>
+                <button type="button" class="tab-pill btn-sm" id="fltrLedgerSettlement" data-type="OTHER_SETTLEMENT" style="font-size:12px;">Settlements (-Due)</button>
+              </div>
+            </div>
+
+            <!-- Ledger Search Input -->
+            <div style="margin-bottom:14px;">
+              <input type="text" id="inputLedgerSearch" class="form-input" placeholder="🔍 Search by farmer name, invoice #, ref #, or remarks...">
+            </div>
+
+            <div class="table-responsive">
+              <table class="table-custom" id="singkeLedgerTable">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Ref #</th>
+                    <th>Farmer / Source</th>
+                    <th>Transaction Details</th>
+                    <th>Payable Credit (+₹)</th>
+                    <th>Deduction Debit (-₹)</th>
+                    <th>Running Balance (₹)</th>
+                    <th>Remarks</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="singkeLedgerTbody">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+            <div id="singkeLedgerEmpty" class="empty-state" style="display:none;">
+              <div class="empty-state-icon">📖</div>
+              <h3>No ledger entries match this period or filter</h3>
+              <p>Try clearing filters or adding lifting / Wangkhei sales records.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: WANGKHEI STORE ACCOUNT -->
+        <div id="panelSingkeWangkhei" style="display:none;">
+          <!-- Wangkhei Info Banner -->
+          <div style="background:#F0FDF4; border:1px solid #BBF7D0; border-radius:12px; padding:16px; margin-bottom:16px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+              <div>
+                <div style="font-weight:800; color:#166534; font-size:16px; display:flex; align-items:center; gap:6px;">
+                  🏪 Wangkhei Store (Singke Account Branch)
+                </div>
+                <div style="font-size:13px; color:#15803D; margin-top:4px; line-height:1.5;">
+                  Wangkhei Store belongs to Singke. Any eligible cage or bird weight sold through Wangkhei Store is <strong>automatically deducted</strong> from the amount remaining payable to Singke.
+                </div>
+              </div>
+              <button type="button" class="btn btn-success btn-sm" id="btnNewWangkheiSale">
+                + New Wangkhei Store Sale
+              </button>
+            </div>
+          </div>
+
+          <!-- Wangkhei Stats -->
+          <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom:16px;">
+            <div class="stat-card emerald">
+              <div class="stat-header">
+                <span class="stat-label">Total Sold Weight</span>
+                <div class="stat-icon">⚖️</div>
+              </div>
+              <div class="stat-value"><span id="wangkheiTotalWeight">0.00</span> kg</div>
+              <div class="stat-sub">Across all Wangkhei sales</div>
+            </div>
+            <div class="stat-card teal">
+              <div class="stat-header">
+                <span class="stat-label">Total Cages Sold</span>
+                <div class="stat-icon">📦</div>
+              </div>
+              <div class="stat-value" id="wangkheiTotalCages">0</div>
+              <div class="stat-sub">Cages billed to Wangkhei Store</div>
+            </div>
+            <div class="stat-card blue">
+              <div class="stat-header">
+                <span class="stat-label">Total Auto-Deducted Amount</span>
+                <div class="stat-icon">💰</div>
+              </div>
+              <div class="stat-value">₹<span id="wangkheiTotalAmount">0.00</span></div>
+              <div class="stat-sub">Deducted from Singke's due</div>
+            </div>
+          </div>
+
+          <!-- Wangkhei Transactions Table -->
+          <div class="card">
+            <div class="card-title">
+              <span>Wangkhei Store Sales Deductions</span>
+              <span id="wangkheiSalesBadge" class="badge" style="font-size:12px;background:#F1F5F9;padding:2px 8px;border-radius:12px;">0 sales</span>
+            </div>
+            <div class="table-responsive">
+              <table class="table-custom" id="wangkheiSalesTable">
+                <thead>
+                  <tr>
+                    <th>Invoice #</th>
+                    <th>Date</th>
+                    <th>Farmer</th>
+                    <th>Lifting Ref</th>
+                    <th>Cages</th>
+                    <th>Weight (kg)</th>
+                    <th>Sales Rate</th>
+                    <th>Deducted Amount (₹)</th>
+                    <th>Remarks</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="wangkheiSalesTbody">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+            <div id="wangkheiSalesEmpty" class="empty-state" style="display:none;">
+              <div class="empty-state-icon">🏪</div>
+              <h3>No Wangkhei Store sales recorded in this period</h3>
+              <p>When you record a sale to Wangkhei Store, the cage weight and billed amount will automatically appear here and deduct from Singke.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 4: FARMER ACCOUNTS & BALANCES -->
+        <div id="panelSingkeFarmers" style="display:none;">
+          <div class="card">
+            <div class="card-title" style="flex-wrap:wrap; gap:10px;">
+              <div>
+                <span>Farmer Lifting &amp; Payment Accounts</span>
+                <div style="font-size:12px; color:var(--text-muted); font-weight:normal;">Individual lifting amounts, Wangkhei deductions, settlements, and remaining due per farmer</div>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <input type="text" id="inputFarmerAccountSearch" class="form-input" placeholder="🔍 Search farmer by name, phone, ID..." style="width:240px; font-size:13px; padding:6px 12px;">
+              </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table-custom" id="farmerAccountsTable">
+                <thead>
+                  <tr>
+                    <th>Farmer Name</th>
+                    <th>Phone</th>
+                    <th>Liftings</th>
+                    <th>Total Birds</th>
+                    <th>Total Wt (kg)</th>
+                    <th>Lifting Value (₹)</th>
+                    <th>Wangkhei Deducted (₹)</th>
+                    <th>Direct Settled (₹)</th>
+                    <th>Remaining Due (₹)</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="farmerAccountsTbody">
+                  <!-- Dynamic rows -->
+                </tbody>
+              </table>
+            </div>
+            <div id="farmerAccountsEmpty" class="empty-state" style="display:none;">
+              <div class="empty-state-icon">👨‍🌾</div>
+              <h3>No farmers found</h3>
+              <p>Registered farmers and their lifting financial statements will be listed here.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 5: FORMAL ACCOUNTING STATEMENTS & REPORTS -->
+        <div id="panelSingkeReports" style="display:none;">
+          <div class="card" style="margin-bottom:16px;">
+            <div class="card-title">
+              <span>Generate Accounting Statements</span>
+            </div>
+            <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+              <div style="flex:1; min-width:220px;">
+                <label class="form-label" for="selectReportType">Select Statement Type</label>
+                <select id="selectReportType" class="form-select">
+                  <option value="singke_settlement">1. Singke Master Settlement &amp; Ledger Statement</option>
+                  <option value="farmer_summary">2. Farmer Lifting &amp; Payment Summary Report</option>
+                  <option value="wangkhei_deductions">3. Wangkhei Store Sales &amp; Deductions Statement</option>
+                </select>
+              </div>
+              <div style="margin-top:20px; display:flex; gap:8px;">
+                <button type="button" class="btn btn-primary" id="btnGenerateReportPreview">
+                  Generate Statement Preview
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Statement Printable Sheet -->
+          <div class="card" id="reportPreviewCard" style="background:#FFFFFF; border:1px solid #CBD5E1; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1);">
+            <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:2px solid #E2E8F0; padding-bottom:12px; margin-bottom:16px; flex-wrap:wrap; gap:10px;">
+              <div>
+                <h2 style="font-size:18px; font-weight:800; color:var(--text-main); margin:0;" id="reportSheetTitle">
+                  Singke Master Settlement &amp; Ledger Statement
+                </h2>
+                <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">
+                  MPF LiftDesk • Date Range: <span id="reportSheetDateRange">All Time</span>
+                </div>
+              </div>
+              <div style="display:flex; gap:8px;">
+                <button type="button" class="btn btn-whatsapp btn-sm" id="btnReportActionWhatsApp">WhatsApp</button>
+                <button type="button" class="btn btn-outline btn-sm" id="btnReportActionPrint">Print / PDF</button>
+                <button type="button" class="btn btn-outline btn-sm" id="btnReportActionExcel">Export Excel</button>
+              </div>
+            </div>
+
+            <!-- Dynamic Report Content -->
+            <div id="reportSheetBody">
+              <!-- Rendered report content -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- MOBILE BOTTOM NAVIGATION -->
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-view="viewHome">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+          <polyline points="9 22 9 12 15 12 15 22"></polyline>
+        </svg>
+        <span class="nav-label">Home</span>
+      </button>
+
+      <button class="nav-item" data-view="viewLifting">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+          <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+          <line x1="12" y1="22.08" x2="12" y2="12"></line>
+        </svg>
+        <span class="nav-label">Lifting</span>
+      </button>
+
+      <button class="nav-item" data-view="viewFarmers">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+          <circle cx="9" cy="7" r="4"></circle>
+          <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+          <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+        </svg>
+        <span class="nav-label">Farmers</span>
+      </button>
+
+      <button class="nav-item" data-view="viewSales">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
+          <line x1="1" y1="10" x2="23" y2="10"></line>
+        </svg>
+        <span class="nav-label">Sales</span>
+      </button>
+
+      <button class="nav-item" data-view="viewStores">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M3 3h18v18H3z"></path>
+          <path d="M3 9h18"></path>
+          <path d="M9 21V9"></path>
+        </svg>
+        <span class="nav-label">Stores</span>
+      </button>
+
+      <button class="nav-item" data-view="viewSingkeAccount">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path>
+          <line x1="12" y1="6" x2="12" y2="8"></line>
+          <line x1="12" y1="16" x2="12" y2="18"></line>
+        </svg>
+        <span class="nav-label">Singke A/C</span>
+      </button>
+
+      <button class="nav-item" data-view="viewLedger">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M12 1v22"></path>
+          <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
+        </svg>
+        <span class="nav-label">Ledger</span>
+      </button>
+
+      <button class="nav-item" data-view="viewSettings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span class="nav-label">Settings</span>
+      </button>
+    </nav>
+
+    <!-- TOAST CONTAINER -->
+    <div id="toastContainer" class="toast-container"></div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: REGISTER NEW FARMER                              -->
+  <!-- ======================================================= -->
+  <div id="modalFarmerRegister" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title" id="farmerModalTitle">Register New Farmer</div>
+        <button type="button" class="btn-close-modal" data-close="modalFarmerRegister">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modalFarmerId">
+        <div class="form-group">
+          <label class="form-label" for="modalFarmerName">Farmer Full Name <span class="required">*</span></label>
+          <input type="text" id="modalFarmerName" class="form-input" placeholder="e.g. Suraj Kumar" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modalFarmerPhone">Phone Number <span class="required">*</span></label>
+          <input type="tel" id="modalFarmerPhone" class="form-input" placeholder="e.g. 9876543210" required>
+          <div class="form-hint">Stored exclusively in Farmer Master. Linked to all future liftings by Farmer ID.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close="modalFarmerRegister">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btnSaveFarmerModal">Save Farmer</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: FARMER SELECTOR DIALOG (Search-First Interface)  -->
+  <!-- ======================================================= -->
+  <div id="modalFarmerSelector" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Select Farmer from Master</div>
+        <button type="button" class="btn-close-modal" data-close="modalFarmerSelector">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="search-container">
+          <span class="search-icon">🔍</span>
+          <input type="text" id="inputModalFarmerSearch" class="search-input" placeholder="Type farmer name or phone..." autocomplete="off">
+        </div>
+        <div id="modalFarmerResultsList" style="max-height:300px;overflow-y:auto;">
+          <!-- Loaded dynamically -->
+        </div>
+      </div>
+      <div class="modal-footer" style="justify-content:space-between;">
+        <button type="button" class="btn btn-gold btn-sm" id="btnModalCreateNewFarmer">
+          + Register New Farmer
+        </button>
+        <button type="button" class="btn btn-outline btn-sm" data-close="modalFarmerSelector">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: ADD / EDIT STORE                                 -->
+  <!-- ======================================================= -->
+  <div id="modalStore" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title" id="storeModalTitle">Add Store</div>
+        <button type="button" class="btn-close-modal" data-close="modalStore">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="modalStoreId">
+        <div class="form-group">
+          <label class="form-label" for="modalStoreName">Store Name <span class="required">*</span></label>
+          <input type="text" id="modalStoreName" class="form-input" placeholder="e.g. Royal Chicken Center" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modalStorePhone">WhatsApp Number <span class="required">*</span></label>
+          <input type="tel" id="modalStorePhone" class="form-input" placeholder="e.g. 9876543210" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modalStoreOpeningDue">Opening Balance / Previous Due (₹)</label>
+          <input type="number" id="modalStoreOpeningDue" class="form-input" placeholder="0.00" step="0.01">
+          <div class="form-hint">Enter previous due if migrating an existing buyer store.</div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close="modalStore">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btnSaveStoreModal">Save Store</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: SALES INVOICE VIEW & PRINT                       -->
+  <!-- Strictly NO Farm Rate or Profit!                        -->
+  <!-- ======================================================= -->
+  <div id="modalInvoice" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:640px;">
+      <div class="modal-header">
+        <div class="modal-title">Sales Invoice</div>
+        <button type="button" class="btn-close-modal" data-close="modalInvoice">✕</button>
+      </div>
+      <div class="modal-body" id="invoicePrintArea">
+        <div style="text-align:center;border-bottom:2px solid #0F172A;padding-bottom:12px;margin-bottom:14px;">
+          <h2 style="font-size:20px;font-weight:900;color:#0F172A;letter-spacing:-0.5px;">MPF LiftDesk</h2>
+          <div style="font-size:12px;color:#64748B;">Broiler Lifting &amp; Store Supply Management</div>
+          <div style="font-size:14px;font-weight:800;color:#2563EB;margin-top:6px;" id="invNumber">MPF-202609-00001</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:13px;margin-bottom:14px;">
+          <div>
+            <div style="font-size:11px;color:#64748B;font-weight:700;">BILLED TO:</div>
+            <div style="font-size:15px;font-weight:800;color:#0F172A;" id="invStoreName">--</div>
+            <div style="color:#64748B;">WhatsApp: <span id="invStorePhone">--</span></div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px;color:#64748B;font-weight:700;">INVOICE DETAILS:</div>
+            <div>Date: <strong id="invDate">--</strong></div>
+            <div>Lifting Ref: <strong id="invLiftingRef">--</strong></div>
+          </div>
+        </div>
+
+        <div class="table-responsive" style="margin-bottom:14px;">
+          <table class="table-custom" id="invCagesTable">
+            <thead>
+              <tr>
+                <th style="width:38px;">#</th>
+                <th>Cage</th>
+                <th style="width:65px;">Birds</th>
+                <th>Weight (kg)</th>
+                <th>Rate (₹/kg)</th>
+                <th style="text-align:right;">Amount (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="invCagesTbody">
+              <tr>
+                <td>1</td>
+                <td id="invCage">--</td>
+                <td>--</td>
+                <td id="invWeight">--</td>
+                <td id="invRate">--</td>
+                <td style="text-align:right;font-weight:700;" id="invAmount">--</td>
+              </tr>
+            </tbody>
+            <tfoot id="invCagesTfoot" style="background:#F8FAFC;border-top:2px solid #E2E8F0;font-weight:700;">
+              <!-- Dynamic totals row -->
+            </tfoot>
+          </table>
+        </div>
+
+        <div style="margin-left:auto;max-width:280px;font-size:13px;background:#F8FAFC;padding:12px;border-radius:8px;">
+          <div style="display:flex;justify-content:space-between;padding:4px 0;">
+            <span>Sale Amount:</span>
+            <strong id="invSubtotal">₹0.00</strong>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;">
+            <span>Previous Due:</span>
+            <span id="invPrevDue">₹0.00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px dashed #CBD5E1;">
+            <span>Paid Amount (<span id="invPayMethod">Cash</span>):</span>
+            <span style="color:var(--success);" id="invPaid">₹0.00</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 0 4px 0;font-size:15px;font-weight:800;color:var(--danger);">
+            <span>Current Outstanding:</span>
+            <span id="invOutstanding">₹0.00</span>
+          </div>
+        </div>
+
+        <div style="margin-top:20px;font-size:11px;color:#94A3B8;text-align:center;border-top:1px solid #E2E8F0;padding-top:8px;">
+          Thank you for your business. Computer generated invoice.
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-whatsapp" id="btnInvoiceWhatsApp">Share on WhatsApp</button>
+        <button type="button" class="btn btn-outline" id="btnPrintInvoice">Print / PDF</button>
+        <button type="button" class="btn btn-primary" data-close="modalInvoice">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: FARMER REPORT VIEW                               -->
+  <!-- ======================================================= -->
+  <div id="modalFarmerReport" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:700px;">
+      <div class="modal-header">
+        <div class="modal-title">Farmer Broiler Lifting Report</div>
+        <button type="button" class="btn-close-modal" data-close="modalFarmerReport">✕</button>
+      </div>
+      <div class="modal-body" id="farmerReportPrintArea">
+        <div style="border-bottom:2px solid #0F172A;padding-bottom:10px;margin-bottom:14px;">
+          <h2 style="font-size:18px;font-weight:800;">MPF LiftDesk - Farmer Statement</h2>
+          <div style="font-size:13px;color:var(--text-muted);margin-top:2px;">Central Farmer Master Record &amp; Historic Liftings</div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:14px;background:#F8FAFC;padding:12px;border-radius:8px;margin-bottom:14px;">
+          <div>
+            <div>Farmer: <strong id="repFarmerName">--</strong></div>
+            <div>Phone: <strong id="repFarmerPhone">--</strong></div>
+            <div>Farmer ID: <strong id="repFarmerId">--</strong></div>
+          </div>
+          <div>
+            <div>Total Liftings: <strong id="repTotalLiftings">0</strong></div>
+            <div>Total Cages: <strong id="repTotalCages">0</strong></div>
+            <div>Total Weight: <strong id="repTotalWeight">0.00 kg</strong></div>
+            <div>Total Birds: <strong id="repTotalBirds">0</strong></div>
+          </div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th>Lifting ID</th>
+                <th>Date</th>
+                <th>Cages</th>
+                <th>Weight (kg)</th>
+                <th>Birds</th>
+                <th>Avg Bird Wt</th>
+              </tr>
+            </thead>
+            <tbody id="repLiftingsTbody">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-whatsapp" id="btnFarmerReportWhatsApp">WhatsApp Report</button>
+        <button type="button" class="btn btn-outline" id="btnPrintFarmerReport">Print / PDF</button>
+        <button type="button" class="btn btn-primary" data-close="modalFarmerReport">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: STORE STATEMENT                                  -->
+  <!-- ======================================================= -->
+  <div id="modalStoreStatement" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:700px;">
+      <div class="modal-header">
+        <div class="modal-title">Store Account Statement</div>
+        <button type="button" class="btn-close-modal" data-close="modalStoreStatement">✕</button>
+      </div>
+      <div class="modal-body" id="storeStatementPrintArea">
+        <div style="border-bottom:2px solid #0F172A;padding-bottom:10px;margin-bottom:14px;">
+          <h2 style="font-size:18px;font-weight:800;">MPF LiftDesk - Store Ledger Statement</h2>
+          <div style="font-size:13px;color:var(--text-muted);" id="statementStoreInfo">--</div>
+        </div>
+
+        <div class="table-responsive">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Reference</th>
+                <th>Details</th>
+                <th>Billed (₹)</th>
+                <th>Paid (₹)</th>
+                <th>Balance (₹)</th>
+              </tr>
+            </thead>
+            <tbody id="statementTbody">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <div style="text-align:right;margin-top:14px;font-size:16px;font-weight:800;color:var(--danger);">
+          Net Outstanding Balance: ₹<span id="statementNetDue">0.00</span>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-whatsapp" id="btnStoreStatementWhatsApp">WhatsApp Statement</button>
+        <button type="button" class="btn btn-outline" id="btnPrintStoreStatement">Print / PDF</button>
+        <button type="button" class="btn btn-primary" data-close="modalStoreStatement">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: DATA INTEGRITY ALERT                             -->
+  <!-- Explains why an edit or delete operation is blocked     -->
+  <!-- ======================================================= -->
+  <div id="modalIntegrityAlert" class="modal-backdrop">
+    <div class="modal-dialog">
+      <div class="modal-header" style="background:#FEF2F2;">
+        <div class="modal-title" style="color:var(--danger);display:flex;align-items:center;gap:6px;">
+          ⚠️ Data Protection Guard
+        </div>
+        <button type="button" class="btn-close-modal" data-close="modalIntegrityAlert">✕</button>
+      </div>
+      <div class="modal-body">
+        <p id="integrityAlertMessage" style="font-size:14px;color:var(--text-main);line-height:1.6;">
+          This operation was blocked to protect your financial and business data integrity.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-close="modalIntegrityAlert">Understood</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: SINGKE SETTLEMENT (RECORD / EDIT PAYOUT)         -->
+  <!-- ======================================================= -->
+  <div id="modalSingkeSettlement" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:550px;">
+      <div class="modal-header">
+        <div class="modal-title" id="modalSingkeSettlementTitle">Record Payout to Singke</div>
+        <button type="button" class="btn-close-modal" data-close="modalSingkeSettlement">✕</button>
+      </div>
+      <form id="formModalSingkeSettlement">
+        <div class="modal-body">
+          <input type="hidden" id="modalSettleId" value="">
+          
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="modalSettleDate">Payment Date <span class="required">*</span></label>
+              <input type="date" id="modalSettleDate" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="modalSettleAmount">Amount Paid (₹) <span class="required">*</span></label>
+              <input type="number" id="modalSettleAmount" class="form-input" placeholder="0.00" step="0.01" min="1" required>
+            </div>
+          </div>
+
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="modalSettleMethod">Payment Method</label>
+              <select id="modalSettleMethod" class="form-select">
+                <option value="Cash">Cash</option>
+                <option value="Bank Transfer">Bank Transfer (NEFT/IMPS)</option>
+                <option value="UPI / GPay / PhonePe">UPI / GPay / PhonePe</option>
+                <option value="Cheque">Cheque</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="modalSettleRef">Reference / UTR / Cheque #</label>
+              <input type="text" id="modalSettleRef" class="form-input" placeholder="e.g. UTR49182374">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="modalSettleFarmer">Linked Farmer Account (Optional)</label>
+            <select id="modalSettleFarmer" class="form-select">
+              <option value="">General Singke Account (Not tied to specific farmer)</option>
+            </select>
+            <div class="form-hint">Farmer whose lifting this payment settles. If left blank, it applies to Singke's overall account.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="modalSettleRemarks">Payment Remarks / Settlement Notes</label>
+            <input type="text" id="modalSettleRemarks" class="form-input" placeholder="e.g. Payment for Batch #1 lifting settlement">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close="modalSingkeSettlement">Cancel</button>
+          <button type="button" class="btn btn-danger" id="btnDeleteModalSettlement" style="display:none;margin-right:auto;">Delete Entry</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveModalSettlement">Save Settlement</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: EDIT TRANSACTION REMARKS                         -->
+  <!-- ======================================================= -->
+  <div id="modalEditRemarks" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:480px;">
+      <div class="modal-header">
+        <div class="modal-title">Edit Payment Remarks</div>
+        <button type="button" class="btn-close-modal" data-close="modalEditRemarks">✕</button>
+      </div>
+      <form id="formModalEditRemarks">
+        <div class="modal-body">
+          <input type="hidden" id="editRemarksEntityType" value="">
+          <input type="hidden" id="editRemarksEntityId" value="">
+
+          <div style="background:#F8FAFC; border:1px solid #E2E8F0; border-radius:10px; padding:12px; margin-bottom:14px;">
+            <div style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Transaction Reference</div>
+            <div style="font-size:14px; font-weight:700; color:var(--text-main); margin-top:2px;" id="editRemarksRefText">--</div>
+            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;" id="editRemarksSubText">--</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputEditRemarksText">Payment Remarks / Ledger Notes <span class="required">*</span></label>
+            <textarea id="inputEditRemarksText" class="form-input" rows="3" placeholder="Enter updated remarks or notes..." required></textarea>
+            <div class="form-hint">These remarks will be saved to the database and displayed across all statements and ledgers.</div>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close="modalEditRemarks">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Remarks</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: EDIT LIFTING RATE & REMARKS                      -->
+  <!-- ======================================================= -->
+  <div id="modalEditLiftingRate" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:480px;">
+      <div class="modal-header">
+        <div class="modal-title">Update Lifting Rate &amp; Remarks</div>
+        <button type="button" class="btn-close-modal" data-close="modalEditLiftingRate">✕</button>
+      </div>
+      <form id="formModalEditLiftingRate">
+        <div class="modal-body">
+          <input type="hidden" id="editLiftingId" value="">
+
+          <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:10px; padding:12px; margin-bottom:14px;">
+            <div style="font-size:11px; text-transform:uppercase; color:#1E40AF; font-weight:700;">Lifting Details</div>
+            <div style="font-size:14px; font-weight:700; color:#1E3A8A; margin-top:2px;" id="editLiftingDetailsHeader">--</div>
+            <div style="font-size:12px; color:#3B82F6; margin-top:2px;" id="editLiftingWeightSub">--</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputEditLiftingRate">Farmer Lifting Rate (₹ / kg) <span class="required">*</span></label>
+            <input type="number" id="inputEditLiftingRate" class="form-input" step="0.5" min="0" required>
+            <div class="form-hint">Changing this recalculates the total lifting value payable to Singke automatically.</div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="inputEditLiftingRemarks">Payment Remarks / Notes</label>
+            <input type="text" id="inputEditLiftingRemarks" class="form-input">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" data-close="modalEditLiftingRate">Cancel</button>
+          <button type="submit" class="btn btn-primary">Update Lifting</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: FARMER FINANCIAL STATEMENT & ACCOUNTING          -->
+  <!-- ======================================================= -->
+  <div id="modalFarmerAccountingStatement" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:760px;">
+      <div class="modal-header">
+        <div class="modal-title">Farmer Lifting &amp; Payment Statement</div>
+        <button type="button" class="btn-close-modal" data-close="modalFarmerAccountingStatement">✕</button>
+      </div>
+      <div class="modal-body" id="farmerStatementPrintArea">
+        <!-- Farmer Info Header -->
+        <div style="border-bottom:2px solid #0F172A; padding-bottom:12px; margin-bottom:14px; display:flex; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; gap:10px;">
+          <div>
+            <h2 style="font-size:18px; font-weight:800; margin:0;" id="stmtFarmerName">--</h2>
+            <div style="font-size:13px; color:var(--text-muted); margin-top:3px;">
+              Farmer ID: <span id="stmtFarmerId">--</span> | Phone: <span id="stmtFarmerPhone">--</span>
+            </div>
+            <div style="font-size:12px; color:#475569; margin-top:2px;">
+              Settlement Route: <strong>Payable through Singke (Wangkhei Store Deductions Eligible)</strong>
+            </div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">Remaining Balance Due</div>
+            <div style="font-size:22px; font-weight:900; color:var(--danger);" id="stmtRemainingDue">₹0.00</div>
+          </div>
+        </div>
+
+        <!-- 4-Stat Metric Box -->
+        <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(130px, 1fr)); gap:8px; margin-bottom:14px;">
+          <div style="background:#EFF6FF; border:1px solid #BFDBFE; border-radius:8px; padding:8px 10px;">
+            <div style="font-size:10px; color:#1E40AF; font-weight:700;">Total Lifting Value</div>
+            <div style="font-size:14px; font-weight:800; color:#1E3A8A; margin-top:2px;" id="stmtTotalLiftingValue">₹0.00</div>
+            <div style="font-size:10px; color:#3B82F6;" id="stmtLiftingStats">0 kg, 0 birds</div>
+          </div>
+          <div style="background:#ECFDF5; border:1px solid #A7F3D0; border-radius:8px; padding:8px 10px;">
+            <div style="font-size:10px; color:#065F46; font-weight:700;">Wangkhei Deductions</div>
+            <div style="font-size:14px; font-weight:800; color:#047857; margin-top:2px;" id="stmtWangkheiDeductions">− ₹0.00</div>
+            <div style="font-size:10px; color:#10B981;">Auto-deducted sales</div>
+          </div>
+          <div style="background:#FDF2F8; border:1px solid #FBCFE8; border-radius:8px; padding:8px 10px;">
+            <div style="font-size:10px; color:#9D174D; font-weight:700;">Direct Settlements</div>
+            <div style="font-size:14px; font-weight:800; color:#BE185D; margin-top:2px;" id="stmtDirectSettlements">− ₹0.00</div>
+            <div style="font-size:10px; color:#EC4899;">Paid via Singke</div>
+          </div>
+          <div style="background:#FEF3C7; border:1px solid #FDE68A; border-radius:8px; padding:8px 10px;">
+            <div style="font-size:10px; color:#92400E; font-weight:700;">Net Remaining Due</div>
+            <div style="font-size:14px; font-weight:800; color:#B45309; margin-top:2px;" id="stmtNetRemaining">₹0.00</div>
+            <div style="font-size:10px; color:#D97706;">Balance to settle</div>
+          </div>
+        </div>
+
+        <!-- Ledger Table -->
+        <div class="table-responsive">
+          <table class="table-custom">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Type</th>
+                <th>Reference</th>
+                <th>Details</th>
+                <th>Amount (₹)</th>
+                <th>Running Due (₹)</th>
+                <th>Remarks</th>
+              </tr>
+            </thead>
+            <tbody id="stmtTimelineTbody">
+              <!-- Dynamic rows -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-whatsapp" id="btnStmtWhatsApp">WhatsApp Statement</button>
+        <button type="button" class="btn btn-outline" id="btnStmtPrint">Print / PDF</button>
+        <button type="button" class="btn btn-primary" data-close="modalFarmerAccountingStatement">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- MODAL: PIN SETUP                                        -->
+  <!-- ======================================================= -->
+  <div id="modalPinSetup" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:360px;">
+      <div class="modal-header">
+        <div class="modal-title">Set Application PIN</div>
+        <button type="button" class="btn-close-modal" data-close="modalPinSetup">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label" for="inputNewPin">New 4-Digit PIN</label>
+          <input type="password" id="inputNewPin" class="form-input" maxlength="4" placeholder="••••" style="text-align:center;font-size:20px;letter-spacing:6px;">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="inputConfirmPin">Confirm 4-Digit PIN</label>
+          <input type="password" id="inputConfirmPin" class="form-input" maxlength="4" placeholder="••••" style="text-align:center;font-size:20px;letter-spacing:6px;">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close="modalPinSetup">Cancel</button>
+        <button type="button" class="btn btn-primary" id="btnSaveNewPin">Save PIN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
+  <!-- PIN LOCK SCREEN OVERLAY                                 -->
+  <!-- ======================================================= -->
+  <div id="pinLockOverlay" class="pin-lock-overlay" style="display:none;">
+    <div class="pin-lock-box">
+      <div style="font-size:42px;margin-bottom:8px;">🔒</div>
+      <h2 style="font-size:20px;font-weight:800;">MPF LiftDesk Locked</h2>
+      <p style="font-size:13px;color:#94A3B8;margin-top:4px;">Enter your 4-digit PIN to continue</p>
+
+      <div class="pin-dots">
+        <div class="pin-dot" id="pindot0"></div>
+        <div class="pin-dot" id="pindot1"></div>
+        <div class="pin-dot" id="pindot2"></div>
+        <div class="pin-dot" id="pindot3"></div>
+      </div>
+
+      <div id="pinErrorMessage" style="color:#EF4444;font-size:13px;font-weight:600;min-height:20px;margin-bottom:8px;"></div>
+
+      <div class="pin-pad-grid">
+        <button type="button" class="pin-btn" data-key="1">1</button>
+        <button type="button" class="pin-btn" data-key="2">2</button>
+        <button type="button" class="pin-btn" data-key="3">3</button>
+        <button type="button" class="pin-btn" data-key="4">4</button>
+        <button type="button" class="pin-btn" data-key="5">5</button>
+        <button type="button" class="pin-btn" data-key="6">6</button>
+        <button type="button" class="pin-btn" data-key="7">7</button>
+        <button type="button" class="pin-btn" data-key="8">8</button>
+        <button type="button" class="pin-btn" data-key="9">9</button>
+        <button type="button" class="pin-btn" data-action="clear" style="font-size:15px;">Clear</button>
+        <button type="button" class="pin-btn" data-key="0">0</button>
+        <button type="button" class="pin-btn" data-action="delete" style="font-size:18px;">⌫</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAIN SCRIPT -->
+  <script src="js/db.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

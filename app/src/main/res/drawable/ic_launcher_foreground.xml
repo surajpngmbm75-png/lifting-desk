@@ -1,0 +1,40 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Center container within 66dp safe zone (21dp to 87dp) -->
+    <!-- Circular decorative badge background -->
+    <path
+        android:fillColor="#1E3A6E"
+        android:pathData="M54,22 C71.67,22 86,36.33 86,54 C86,71.67 71.67,86 54,86 C36.33,86 22,71.67 22,54 C22,36.33 36.33,22 54,22 Z" />
+    <path
+        android:strokeColor="#F59E0B"
+        android:strokeWidth="2.5"
+        android:fillColor="#00000000"
+        android:pathData="M54,25 C70.02,25 83,37.98 83,54 C83,70.02 70.02,83 54,83 C37.98,83 25,70.02 25,54 C25,37.98 37.98,25 54,25 Z" />
+    <!-- Broiler silhouette facing right -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M51,33 C53.5,33 55.5,34.2 56.5,36.5 C59,36.5 62,38 63,41 C64.5,41 66,42 66,43.5 C66,44.5 65.2,45.2 64.5,45.5 C66,48 67,52 66,56 C64.5,62 59,67 52,67 C44.5,67 37,62 36,54 C35.5,50 37,45 40,41 C42,38.5 45,36.5 48,36 C48,34.5 49.5,33 51,33 Z" />
+    <!-- Comb & wattle in vibrant amber -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M51,30 C52,30 53,31 53,32 C54,31 55,31.5 55,33 C53.5,33 52,33.5 51,34 C50,33 49.5,31 51,30 Z" />
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M64,45 C65,46 65,47.5 64,48 C63,48 62.5,47 63,46 Z" />
+    <!-- Crate / Lifting Platform Base in Gold and White -->
+    <path
+        android:fillColor="#F59E0B"
+        android:pathData="M34,68 L74,68 L71,76 L37,76 Z" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000"
+        android:pathData="M39,70 L39,74 M47,70 L47,74 M54,70 L54,74 M61,70 L61,74 M69,70 L69,74" />
+    <!-- Upward Lifting arrows -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M70,36 L75,41 L72,41 L72,47 L68,47 L68,41 L65,41 Z" />
+</vector>
