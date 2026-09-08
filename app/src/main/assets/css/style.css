@@ -1701,26 +1701,112 @@ input, select, textarea, button {
 
 /* ==========================================================================
    PRINT STYLESHEET (@media print)
+   Optimized for A4 Print to PDF, Statements, Invoices, and Reports
    ========================================================================== */
 @media print {
-  body {
-    background: #FFFFFF !important;
-    color: #000000 !important;
-    font-size: 12pt;
+  @page {
+    size: A4 portrait;
+    margin: 10mm 12mm;
   }
 
+  *, *:before, *:after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    font-size: 11pt !important;
+    line-height: 1.4 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  /* Hide app navigation chrome, buttons, badges, floating controls */
   .app-header,
   .bottom-nav,
   .quick-actions-bar,
   .btn,
+  .btn-close-modal,
+  .modal-header,
+  .modal-footer,
   .search-container,
   .tab-pills,
-  .no-print {
+  .no-print,
+  #toastContainer,
+  .toast-container,
+  .dash-filter-container,
+  .filter-bar,
+  .page-head,
+  .beta-badge,
+  .card-title button,
+  #headerCloudSyncBadge,
+  .dash-filter-header,
+  .dash-filter-presets,
+  .floating-action-btn,
+  #modalFarmerSelector,
+  #modalFarmerRegister,
+  #modalAddStore,
+  #modalDirectPayment,
+  #modalSingkeSettlement,
+  #modalPinSetup,
+  #modalPinUnlock,
+  #modalSupabaseSetup {
     display: none !important;
+  }
+
+  /* When ANY modal is active, hide #app entirely so ONLY the active modal prints! */
+  body.modal-open #app,
+  body:has(.modal-backdrop.active) #app {
+    display: none !important;
+  }
+
+  .modal-backdrop:not(.active) {
+    display: none !important;
+  }
+
+  .modal-backdrop.active {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    width: 100% !important;
+    height: auto !important;
+    overflow: visible !important;
+    z-index: 1 !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  .modal-backdrop.active .modal-dialog {
+    position: static !important;
+    transform: none !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    max-height: none !important;
+    height: auto !important;
+    overflow: visible !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    background: #FFFFFF !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .modal-backdrop.active .modal-body {
+    padding: 0 !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 
   #app {
     padding-bottom: 0 !important;
+    width: 100% !important;
   }
 
   .main-content {
@@ -1733,19 +1819,65 @@ input, select, textarea, button {
     border: none !important;
     box-shadow: none !important;
     padding: 0 !important;
+    margin-bottom: 12px !important;
   }
 
-  .table-responsive {
-    border: 1px solid #000 !important;
+  /* When printing on Accounting view, only print the accountingPrintSheet */
+  #viewAccounting .card:not(#accountingPrintSheet) {
+    display: none !important;
   }
 
-  .table-custom th, .table-custom td {
-    border-color: #333 !important;
+  /* When printing on Singke Settlements view, only print the reportPreviewCard */
+  #viewSingkeAccount .card:not(#reportPreviewCard) {
+    display: none !important;
   }
 
+  /* Specific Printable Sheet Areas */
   .print-invoice-sheet,
-  .print-report-sheet {
+  .print-report-sheet,
+  #invoicePrintArea,
+  #farmerReportPrintArea,
+  #storeStatementPrintArea,
+  #farmerStatementPrintArea,
+  #accountingPrintSheet,
+  #reportPreviewCard {
     display: block !important;
     width: 100% !important;
+    background: #FFFFFF !important;
+    color: #0F172A !important;
+    padding: 6px !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    page-break-inside: avoid;
+  }
+
+  /* Clean high contrast tables on paper/PDF */
+  .table-responsive {
+    border: 1px solid #CBD5E1 !important;
+    overflow: visible !important;
+  }
+
+  table, .table-custom {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  th, td, .table-custom th, .table-custom td {
+    border: 1px solid #CBD5E1 !important;
+    padding: 6px 8px !important;
+    font-size: 10pt !important;
+    color: #0F172A !important;
+  }
+
+  th, .table-custom th {
+    background-color: #F8FAFC !important;
+    font-weight: 700 !important;
+  }
+
+  .badge {
+    border: 1px solid #CBD5E1 !important;
+    padding: 2px 6px !important;
+    border-radius: 4px !important;
   }
 }

@@ -44,6 +44,7 @@ class MainActivity : ComponentActivity() {
 
   private var rootContainer: FrameLayout? = null
   private var webView: WebView? = null
+  var printWebView: WebView? = null
   private var filePathCallback: ValueCallback<Array<Uri>>? = null
 
   private val filePickerLauncher: ActivityResultLauncher<Intent> =
@@ -70,9 +71,9 @@ class MainActivity : ComponentActivity() {
     super.onCreate(savedInstanceState)
     enableEdgeToEdge()
 
-    // Pre-create WebView cache directories to prevent Chromium simple_file_enumerator opendir
+    // Ensure WebView cache directories exist to prevent Chromium simple_file_enumerator opendir
     // and simple_index_file disk reconstruction errors on startup
-    ensureWebViewCacheDirs()
+    LiftDeskApplication.ensureCacheDirectories(this)
 
     onBackPressedDispatcher.addCallback(
         this,
@@ -136,7 +137,9 @@ class MainActivity : ComponentActivity() {
         mixedContentMode = WebSettings.MIXED_CONTENT_ALWAYS_ALLOW
       }
 
-      addJavascriptInterface(AndroidNativeBridge(this@MainActivity, this), "AndroidBridge")
+      val nativeBridge = AndroidNativeBridge(this@MainActivity, this)
+      addJavascriptInterface(nativeBridge, "AndroidBridge")
+      addJavascriptInterface(nativeBridge, "AndroidNativeBridge")
 
       webViewClient =
           object : WebViewClient() {
@@ -261,6 +264,8 @@ class MainActivity : ComponentActivity() {
   }
 
   override fun onDestroy() {
+    printWebView?.destroy()
+    printWebView = null
     webView?.destroy()
     webView = null
     super.onDestroy()
@@ -272,6 +277,11 @@ class MainActivity : ComponentActivity() {
     fun isNative(): Boolean = true
 
     @JavascriptInterface
+    fun printDocument() {
+      printDocument("MPF_LiftDesk_Document")
+    }
+
+    @JavascriptInterface
     fun printDocument(title: String?) {
       activity.runOnUiThread {
         try {
@@ -280,8 +290,51 @@ class MainActivity : ComponentActivity() {
           val printAdapter = webView.createPrintDocumentAdapter(jobName)
           val builder = PrintAttributes.Builder()
           builder.setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+          builder.setMinMargins(PrintAttributes.Margins.NO_MARGINS)
           printManager?.print(jobName, printAdapter, builder.build())
         } catch (e: Exception) {
+          Log.e("LiftDeskPrint", "Print error: ${e.message}", e)
+          Toast.makeText(activity, "Print error: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+      }
+    }
+
+    @JavascriptInterface
+    fun printHtml(htmlContent: String, title: String?) {
+      activity.runOnUiThread {
+        try {
+          val printManager = activity.getSystemService(Context.PRINT_SERVICE) as? PrintManager
+          val jobName = title?.takeIf { it.isNotBlank() } ?: "MPF_LiftDesk_Document"
+          (activity as? MainActivity)?.printWebView?.destroy()
+          val tempWebView = WebView(activity).apply {
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT
+            )
+            settings.apply {
+              javaScriptEnabled = false
+              domStorageEnabled = false
+              loadWithOverviewMode = true
+              useWideViewPort = true
+            }
+          }
+          (activity as? MainActivity)?.printWebView = tempWebView
+          tempWebView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {
+              try {
+                val printAdapter = tempWebView.createPrintDocumentAdapter(jobName)
+                val builder = PrintAttributes.Builder()
+                builder.setMediaSize(PrintAttributes.MediaSize.ISO_A4)
+                builder.setMinMargins(PrintAttributes.Margins.NO_MARGINS)
+                printManager?.print(jobName, printAdapter, builder.build())
+              } catch (ex: Exception) {
+                Log.e("LiftDeskPrint", "Print adapter error: ${ex.message}", ex)
+              }
+            }
+          }
+          tempWebView.loadDataWithBaseURL("file:///android_asset/", htmlContent, "text/html", "utf-8", null)
+        } catch (e: Exception) {
+          Log.e("LiftDeskPrint", "Print HTML error: ${e.message}", e)
           Toast.makeText(activity, "Print error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
       }
@@ -331,6 +384,63 @@ class MainActivity : ComponentActivity() {
     fun showToast(msg: String) {
       activity.runOnUiThread {
         Toast.makeText(activity, msg, Toast.LENGTH_SHORT).show()
+      }
+    }
+
+    @JavascriptInterface
+    fun copyToClipboard(label: String, text: String) {
+      activity.runOnUiThread {
+        try {
+          val clipboard = activity.getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+          val clip = android.content.ClipData.newPlainText(label, text)
+          clipboard?.setPrimaryClip(clip)
+          Toast.makeText(activity, "Copied to clipboard!", Toast.LENGTH_SHORT).show()
+        } catch (e: Exception) {
+          Toast.makeText(activity, "Copy failed: ${e.message}", Toast.LENGTH_SHORT).show()
+        }
+      }
+    }
+
+    @JavascriptInterface
+    fun saveToLocalFile(fileName: String, content: String): Boolean {
+      return try {
+        val backupDir = File(activity.filesDir, "backups")
+        if (!backupDir.exists()) backupDir.mkdirs()
+        val file = File(backupDir, fileName)
+        FileOutputStream(file).use { fos ->
+          fos.write(content.toByteArray(Charsets.UTF_8))
+        }
+        Log.d("LiftDeskBackup", "Auto-backup saved successfully to: ${file.absolutePath}")
+        true
+      } catch (e: Exception) {
+        Log.e("LiftDeskBackup", "Failed to save auto-backup file: ${e.message}", e)
+        false
+      }
+    }
+
+    @JavascriptInterface
+    fun readLocalFile(fileName: String): String? {
+      return try {
+        val backupDir = File(activity.filesDir, "backups")
+        val file = File(backupDir, fileName)
+        if (file.exists()) file.readText(Charsets.UTF_8) else null
+      } catch (e: Exception) {
+        Log.e("LiftDeskBackup", "Failed to read backup file: ${e.message}", e)
+        null
+      }
+    }
+
+    @JavascriptInterface
+    fun getLocalBackupList(): String {
+      return try {
+        val backupDir = File(activity.filesDir, "backups")
+        if (!backupDir.exists()) return "[]"
+        val files = backupDir.listFiles()?.sortedByDescending { it.lastModified() }?.map { f ->
+          """{"name":"${f.name}","size":${f.length()},"modified":${f.lastModified()}}"""
+        }?.joinToString(prefix = "[", postfix = "]", separator = ",") ?: "[]"
+        files
+      } catch (e: Exception) {
+        "[]"
       }
     }
   }

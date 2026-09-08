@@ -37,34 +37,161 @@
 
   // --- NATIVE BRIDGE HELPER ---
   const Native = {
+    getBridge() {
+      return window.AndroidBridge || window.AndroidNativeBridge || null;
+    },
+
     showToast(msg) {
-      if (window.AndroidNativeBridge && typeof window.AndroidNativeBridge.showToast === 'function') {
-        try { window.AndroidNativeBridge.showToast(msg); } catch (e) { console.warn(e); }
+      const bridge = this.getBridge();
+      if (bridge && typeof bridge.showToast === 'function') {
+        try { bridge.showToast(msg); } catch (e) { console.warn(e); }
       }
       showInAppToast(msg);
     },
 
-    print() {
-      if (window.AndroidNativeBridge && typeof window.AndroidNativeBridge.printDocument === 'function') {
-        try {
-          window.AndroidNativeBridge.printDocument();
-          return;
-        } catch (e) { console.warn(e); }
+    print(title, targetElementOrId) {
+      const docTitle = title || 'MPF_LiftDesk_Document';
+      const bridge = this.getBridge();
+
+      // Determine printable container if specific target provided or modal is open
+      let targetEl = null;
+      if (typeof targetElementOrId === 'string') {
+        targetEl = document.querySelector(targetElementOrId) || document.getElementById(targetElementOrId);
+      } else if (targetElementOrId instanceof HTMLElement) {
+        targetEl = targetElementOrId;
       }
-      window.print();
+
+      // If no explicit target provided, check if a modal is currently open
+      if (!targetEl) {
+        const activeModal = document.querySelector('.modal-backdrop.active');
+        if (activeModal) {
+          targetEl = activeModal.querySelector('.modal-body') || activeModal;
+        }
+      }
+
+      // If on Accounting or Singke report preview view
+      if (!targetEl) {
+        if (state.currentView === 'viewReports' || state.currentView === 'viewAccounting') {
+          targetEl = document.getElementById('accountingPrintSheet');
+        } else if (state.currentView === 'viewSingkeAccount') {
+          targetEl = document.getElementById('reportPreviewCard');
+        }
+      }
+
+      // If we have a target element and bridge supports offscreen printHtml:
+      if (targetEl && bridge && typeof bridge.printHtml === 'function') {
+        try {
+          const htmlContent = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(docTitle)}</title>
+  <style>
+    @page { size: A4 portrait; margin: 10mm 12mm; }
+    *, *:before, *:after { box-sizing: border-box; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+    body {
+      background: #FFFFFF !important;
+      color: #0F172A !important;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding: 12px !important;
+      margin: 0 !important;
+      font-size: 10pt;
+      line-height: 1.4;
+    }
+    .no-print, button, .btn, .btn-close-modal, .card-title button, .tab-pills { display: none !important; }
+    table { width: 100% !important; border-collapse: collapse !important; margin: 12px 0 !important; font-size: 9pt; }
+    th, td { border: 1px solid #CBD5E1 !important; padding: 6px 8px !important; text-align: left; }
+    th { background: #F8FAFC !important; color: #0F172A !important; font-weight: 700; }
+    .badge { border: 1px solid #CBD5E1; padding: 2px 6px; border-radius: 4px; font-size: 8pt; display: inline-block; }
+    .report-metric-box { border: 1px solid #E2E8F0; border-radius: 8px; padding: 10px; background: #F8FAFC; }
+    .metric-label { font-size: 8pt; text-transform: uppercase; color: #64748B; font-weight: 700; }
+    .metric-value { font-size: 14pt; font-weight: 800; margin-top: 4px; }
+    .metric-sub { font-size: 8pt; color: #64748B; margin-top: 2px; }
+  </style>
+</head>
+<body>
+  ${targetEl.innerHTML}
+</body>
+</html>`;
+          bridge.printHtml(htmlContent, docTitle);
+          return;
+        } catch (err) {
+          console.warn('printHtml error, falling back to printDocument', err);
+        }
+      }
+
+      // Native printDocument on main WebView
+      if (bridge && typeof bridge.printDocument === 'function') {
+        try {
+          bridge.printDocument(docTitle);
+          return;
+        } catch (e) {
+          console.warn('Native printDocument call failed:', e);
+        }
+      }
+
+      // Standard browser window.print() fallback
+      try {
+        window.print();
+      } catch (e) {
+        console.warn('window.print failed:', e);
+      }
     },
 
     openWhatsApp(phone, text) {
       const cleanPhone = (phone || '').replace(/\D/g, '');
-      if (window.AndroidNativeBridge && typeof window.AndroidNativeBridge.openWhatsApp === 'function') {
+      const bridge = this.getBridge();
+      if (bridge && typeof bridge.openWhatsApp === 'function') {
         try {
-          window.AndroidNativeBridge.openWhatsApp(cleanPhone, text);
+          bridge.openWhatsApp(cleanPhone, text);
           return;
         } catch (e) { console.warn(e); }
       }
       const url = `https://api.whatsapp.com/send?phone=${encodeURIComponent(cleanPhone)}&text=${encodeURIComponent(text)}`;
       window.open(url, '_blank');
+    },
+
+    saveToLocalFile(fileName, content) {
+      const bridge = this.getBridge();
+      if (bridge && typeof bridge.saveToLocalFile === 'function') {
+        try {
+          return bridge.saveToLocalFile(fileName, content);
+        } catch (e) {
+          console.warn('Native saveToLocalFile error:', e);
+        }
+      }
+      return false;
+    },
+
+    readLocalFile(fileName) {
+      const bridge = this.getBridge();
+      if (bridge && typeof bridge.readLocalFile === 'function') {
+        try {
+          return bridge.readLocalFile(fileName);
+        } catch (e) {
+          console.warn('Native readLocalFile error:', e);
+        }
+      }
+      return null;
+    },
+
+    getLocalBackupList() {
+      const bridge = this.getBridge();
+      if (bridge && typeof bridge.getLocalBackupList === 'function') {
+        try {
+          const listStr = bridge.getLocalBackupList();
+          return JSON.parse(listStr);
+        } catch (e) {
+          console.warn('Native getLocalBackupList error:', e);
+        }
+      }
+      return [];
     }
+  };
+
+  // Safe global print redirection
+  window.print = function() {
+    Native.print();
   };
 
   // Toast UI
@@ -157,6 +284,13 @@
   }
   window.navigateTo = navigateTo;
 
+  function refreshCurrentActiveView() {
+    if (state.currentView) {
+      navigateTo(state.currentView);
+    }
+  }
+  window.refreshCurrentActiveView = refreshCurrentActiveView;
+
   // --- ANDROID HARDWARE BACK NAVIGATION ---
   window.handleAndroidBack = function() {
     // 1. Close any open modal
@@ -184,12 +318,18 @@
   // --- MODALS HELPER ---
   function openModal(modalId) {
     const m = document.getElementById(modalId);
-    if (m) m.classList.add('active');
+    if (m) {
+      m.classList.add('active');
+      document.body.classList.add('modal-open');
+    }
   }
 
   function closeModal(modalId) {
     const m = document.getElementById(modalId);
     if (m) m.classList.remove('active');
+    if (!document.querySelector('.modal-backdrop.active')) {
+      document.body.classList.remove('modal-open');
+    }
   }
 
   function showIntegrityAlert(message) {
@@ -981,7 +1121,7 @@
       }
 
       document.getElementById('btnFarmerReportWhatsApp').onclick = () => window.sendFarmerWhatsApp(farmerId);
-      document.getElementById('btnPrintFarmerReport').onclick = () => Native.print();
+      document.getElementById('btnPrintFarmerReport').onclick = () => Native.print('MPF_Farmer_Lifting_Report', '#modalFarmerReport .modal-body');
 
       openModal('modalFarmerReport');
     } catch (e) {
@@ -1641,7 +1781,7 @@
       document.getElementById('invOutstanding').textContent = `₹${formatCurrency(sale.outstanding)}`;
 
       document.getElementById('btnInvoiceWhatsApp').onclick = () => window.sendInvoiceWhatsApp(sale.id);
-      document.getElementById('btnPrintInvoice').onclick = () => Native.print();
+      document.getElementById('btnPrintInvoice').onclick = () => Native.print('MPF_Sales_Invoice', '#invoicePrintArea');
 
       openModal('modalInvoice');
     } catch (e) {
@@ -1829,7 +1969,7 @@
       }
 
       document.getElementById('btnStoreStatementWhatsApp').onclick = () => window.sendStoreDueReminderWhatsApp(storeId);
-      document.getElementById('btnPrintStoreStatement').onclick = () => Native.print();
+      document.getElementById('btnPrintStoreStatement').onclick = () => Native.print('MPF_Store_Statement', '#modalStoreStatement .modal-body');
 
       openModal('modalStoreStatement');
     } catch (e) {
@@ -2031,8 +2171,8 @@
     await populateSingkeFarmersDropdowns();
 
     // Set initial date filter values if empty
-    const dateStartEl = document.getElementById('singkeDateStart');
-    const dateEndEl = document.getElementById('singkeDateEnd');
+    const dateStartEl = document.getElementById('inputSingkeStartDate');
+    const dateEndEl = document.getElementById('inputSingkeEndDate');
     if (dateStartEl && dateEndEl) {
       dateStartEl.value = state.singkeFilter.startDate || '';
       dateEndEl.value = state.singkeFilter.endDate || '';
@@ -2141,9 +2281,9 @@
       if (statRemDue) statRemDue.textContent = formatCurrency(summary.remainingDueToSingke);
 
       // Render Recent Direct Settlements Table
-      const tbody = document.getElementById('singkeSettlementsTbody') || document.getElementById('singkeRecentSettlementsTbody');
-      const empty = document.getElementById('singkeSettlementsEmpty') || document.getElementById('singkeRecentSettlementsEmpty');
-      const badge = document.getElementById('singkeSettlementListBadge') || document.getElementById('singkeRecentSettlementsBadge');
+      const tbody = document.getElementById('singkeSettlementsTbody');
+      const empty = document.getElementById('singkeSettlementsEmpty');
+      const badge = document.getElementById('singkeSettlementListBadge');
 
       if (tbody) {
         tbody.innerHTML = '';
@@ -2262,7 +2402,7 @@
     const remEl = document.getElementById('modalSettleRemarks');
     if (remEl) remEl.value = '';
 
-    const titleEl = document.getElementById('modalSingkeSettlementTitle') || document.getElementById('modalSettlementTitle');
+    const titleEl = document.getElementById('modalSingkeSettlementTitle');
     if (titleEl) titleEl.textContent = 'Record Singke Payout / Settlement';
 
     const btnDel = document.getElementById('btnDeleteModalSettlement');
@@ -2301,7 +2441,7 @@
       const remEl = document.getElementById('modalSettleRemarks');
       if (remEl) remEl.value = s.remarks || '';
 
-      const titleEl = document.getElementById('modalSingkeSettlementTitle') || document.getElementById('modalSettlementTitle');
+      const titleEl = document.getElementById('modalSingkeSettlementTitle');
       if (titleEl) titleEl.textContent = `Edit Settlement (${refVal || s.id})`;
 
       const btnDel = document.getElementById('btnDeleteModalSettlement');
@@ -2518,7 +2658,7 @@
       const wtEl = document.getElementById('wangkheiTotalWeight');
       const cagesEl = document.getElementById('wangkheiTotalCages');
       const amtEl = document.getElementById('wangkheiTotalAmount');
-      const badge = document.getElementById('wangkheiSalesCountBadge');
+      const badge = document.getElementById('wangkheiSalesBadge');
 
       if (wtEl) wtEl.textContent = `${formatKg(totalWeight)} kg`;
       if (cagesEl) cagesEl.textContent = totalCages;
@@ -2631,77 +2771,103 @@
   // --- RENDER FORMAL REPORT PREVIEWS ---
   async function renderSingkeReportsPreview() {
     try {
-      const typeSelect = document.getElementById('selectReportStatementType');
-      const reportType = typeSelect ? typeSelect.value : 'singke_master';
+      const typeSelect = document.getElementById('selectReportType');
+      const reportType = typeSelect ? typeSelect.value : 'singke_settlement';
 
       const titleEl = document.getElementById('reportSheetTitle');
-      const subEl = document.getElementById('reportSheetSubtitle');
-      const summaryBar = document.getElementById('reportSheetSummaryBar');
-      const tbody = document.getElementById('reportSheetTbody');
+      const dateRangeEl = document.getElementById('reportSheetDateRange');
+      const bodyContainer = document.getElementById('reportSheetBody');
 
-      if (!tbody) return;
-      tbody.innerHTML = '';
+      if (!bodyContainer) return;
 
       const startDate = state.singkeFilter.startDate || null;
       const endDate = state.singkeFilter.endDate || null;
       const periodLabel = (startDate && endDate) ? `${startDate} to ${endDate}` : (startDate ? `From ${startDate}` : (endDate ? `Up to ${endDate}` : 'All Time'));
 
-      if (reportType === 'singke_master') {
-        if (titleEl) titleEl.textContent = 'SINGKE ACCOUNTING & SETTLEMENT STATEMENT';
-        if (subEl) subEl.textContent = `Period: ${periodLabel} | Payable to Singke for farmer liftings less Wangkhei store sales & settlements`;
+      if (dateRangeEl) dateRangeEl.textContent = periodLabel;
+
+      if (reportType === 'singke_master' || reportType === 'singke_settlement') {
+        if (titleEl) titleEl.textContent = 'SINGKE MASTER SETTLEMENT & RUNNING LEDGER';
 
         const summary = await window.liftDeskDB.getSingkeAccountSummary(startDate, endDate);
-        if (summaryBar) {
-          summaryBar.innerHTML = `
+        const ledger = await window.liftDeskDB.getSingkeLedger(startDate, endDate);
+
+        let ledgerRowsHtml = '';
+        if (!ledger || ledger.length === 0) {
+          ledgerRowsHtml = `<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--text-muted);">No ledger entries found for this period.</td></tr>`;
+        } else {
+          ledger.forEach(row => {
+            ledgerRowsHtml += `
+              <tr>
+                <td>${row.date}</td>
+                <td><strong>${escapeHtml(row.refNumber)}</strong></td>
+                <td><span class="badge" style="background:#F1F5F9;font-size:10px;">${escapeHtml(row.type)}</span></td>
+                <td>${escapeHtml(row.farmerName || '--')}</td>
+                <td>${escapeHtml(row.description || '')}</td>
+                <td style="text-align:right;color:#1E40AF;font-weight:600;">${row.credit ? `+₹${formatCurrency(row.credit)}` : '--'}</td>
+                <td style="text-align:right;color:#047857;font-weight:600;">${row.debit ? `-₹${formatCurrency(row.debit)}` : '--'}</td>
+                <td style="text-align:right;font-weight:700;">₹${formatCurrency(row.balance)}</td>
+                <td style="font-size:11px;color:var(--text-muted);">${escapeHtml(row.remarks || '--')}</td>
+              </tr>
+            `;
+          });
+        }
+
+        bodyContainer.innerHTML = `
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:18px;">
             <div class="report-metric-box">
-              <div class="metric-label">Total Farmer Lifting Value</div>
+              <div class="metric-label">Total Lifting Payable</div>
               <div class="metric-value" style="color:#1E40AF;">₹${formatCurrency(summary.totalPayableToSingke)}</div>
               <div class="metric-sub">${summary.liftingsCount} liftings (${formatKg(summary.totalWeightLifted)} kg)</div>
             </div>
             <div class="report-metric-box">
               <div class="metric-label">Wangkhei Store Deductions</div>
               <div class="metric-value" style="color:#047857;">-₹${formatCurrency(summary.totalWangkheiDeductions)}</div>
-              <div class="metric-sub">${summary.wangkheiSalesCount} store sales (${formatKg(summary.wangkheiWeightSold)} kg)</div>
+              <div class="metric-sub">${summary.wangkheiSalesCount} sales (${formatKg(summary.wangkheiWeightSold)} kg)</div>
             </div>
             <div class="report-metric-box">
-              <div class="metric-label">Other Payout Settlements</div>
+              <div class="metric-label">Direct Settlements</div>
               <div class="metric-value" style="color:#6D28D9;">-₹${formatCurrency(summary.totalOtherSettlements)}</div>
-              <div class="metric-sub">${summary.settlementsCount} settlement payouts</div>
+              <div class="metric-sub">${summary.settlementsCount} payouts</div>
             </div>
             <div class="report-metric-box">
-              <div class="metric-label">Final Remaining Due to Singke</div>
+              <div class="metric-label">Remaining Balance Due</div>
               <div class="metric-value" style="color:${summary.remainingDueToSingke > 0 ? '#DC2626' : '#16A34A'};">₹${formatCurrency(summary.remainingDueToSingke)}</div>
-              <div class="metric-sub">Account Balance</div>
+              <div class="metric-sub">Payable to Singke</div>
             </div>
-          `;
-        }
+          </div>
 
-        const ledger = await window.liftDeskDB.getSingkeLedger(startDate, endDate);
-        ledger.forEach(row => {
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${row.date}</td>
-            <td><strong>${row.refNumber}</strong></td>
-            <td>${row.type}</td>
-            <td>${row.farmerName || '--'}</td>
-            <td>${escapeHtml(row.description)}</td>
-            <td style="text-align:right;">${row.credit ? `+₹${formatCurrency(row.credit)}` : '--'}</td>
-            <td style="text-align:right;">${row.debit ? `-₹${formatCurrency(row.debit)}` : '--'}</td>
-            <td style="text-align:right;font-weight:700;">₹${formatCurrency(row.balance)}</td>
-            <td>${row.remarks ? escapeHtml(row.remarks) : '--'}</td>
-          `;
-          tbody.appendChild(tr);
-        });
+          <div class="table-responsive">
+            <table class="table-custom">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Ref #</th>
+                  <th>Type</th>
+                  <th>Farmer / Entity</th>
+                  <th>Description</th>
+                  <th style="text-align:right;">Lifting (+₹)</th>
+                  <th style="text-align:right;">Deduction (-₹)</th>
+                  <th style="text-align:right;">Balance (₹)</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${ledgerRowsHtml}
+              </tbody>
+            </table>
+          </div>
+        `;
 
       } else if (reportType === 'farmer_summary') {
-        if (titleEl) titleEl.textContent = 'FARMER LIFTING & SINGKE SETTLEMENT ACCOUNTING SUMMARY';
-        if (subEl) subEl.textContent = `All Registered Farmers | Single Source of Truth Farmer Master`;
+        if (titleEl) titleEl.textContent = 'FARMER LIFTING & SINGKE SETTLEMENT SUMMARY';
 
         const farmers = await window.liftDeskDB.getAllFarmers();
         let grandLifting = 0;
         let grandWangkhei = 0;
         let grandSettled = 0;
         let grandDue = 0;
+        let farmerRowsHtml = '';
 
         for (const f of farmers) {
           const fin = await window.liftDeskDB.getFarmerFinancialSummary(f.id);
@@ -2710,86 +2876,135 @@
           grandSettled += fin.totalDirectSettlements;
           grandDue += fin.remainingDue;
 
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td><strong>${escapeHtml(f.name)}</strong></td>
-            <td>${f.id}</td>
-            <td>${f.phone}</td>
-            <td>${fin.totalLiftings} liftings</td>
-            <td>${formatKg(fin.totalWeight)} kg (${fin.totalBirds} birds)</td>
-            <td style="text-align:right;font-weight:700;color:#1E40AF;">₹${formatCurrency(fin.totalLiftingAmount)}</td>
-            <td style="text-align:right;color:#047857;">-₹${formatCurrency(fin.totalWangkheiDeductions)}</td>
-            <td style="text-align:right;color:#6D28D9;">-₹${formatCurrency(fin.totalDirectSettlements)}</td>
-            <td style="text-align:right;font-weight:800;color:${fin.remainingDue > 0 ? '#DC2626' : '#16A34A'};">₹${formatCurrency(fin.remainingDue)}</td>
+          farmerRowsHtml += `
+            <tr>
+              <td><strong>${escapeHtml(f.name)}</strong></td>
+              <td><span class="badge" style="font-size:10px;">${escapeHtml(f.id)}</span></td>
+              <td>${escapeHtml(f.phone || '--')}</td>
+              <td>${fin.totalLiftings} liftings</td>
+              <td>${formatKg(fin.totalWeight)} kg (${fin.totalBirds} birds)</td>
+              <td style="text-align:right;font-weight:700;color:#1E40AF;">₹${formatCurrency(fin.totalLiftingAmount)}</td>
+              <td style="text-align:right;color:#047857;">-₹${formatCurrency(fin.totalWangkheiDeductions)}</td>
+              <td style="text-align:right;color:#6D28D9;">-₹${formatCurrency(fin.totalDirectSettlements)}</td>
+              <td style="text-align:right;font-weight:800;color:${fin.remainingDue > 0 ? '#DC2626' : '#16A34A'};">₹${formatCurrency(fin.remainingDue)}</td>
+            </tr>
           `;
-          tbody.appendChild(tr);
         }
 
-        if (summaryBar) {
-          summaryBar.innerHTML = `
+        bodyContainer.innerHTML = `
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:18px;">
             <div class="report-metric-box">
               <div class="metric-label">Total Farmer Liftings</div>
               <div class="metric-value" style="color:#1E40AF;">₹${formatCurrency(grandLifting)}</div>
+              <div class="metric-sub">${farmers.length} registered farmers</div>
             </div>
             <div class="report-metric-box">
-              <div class="metric-label">Wangkhei Store Deducted</div>
+              <div class="metric-label">Wangkhei Deductions</div>
               <div class="metric-value" style="color:#047857;">-₹${formatCurrency(grandWangkhei)}</div>
+              <div class="metric-sub">Store sales offset</div>
             </div>
             <div class="report-metric-box">
               <div class="metric-label">Direct Settlements</div>
               <div class="metric-value" style="color:#6D28D9;">-₹${formatCurrency(grandSettled)}</div>
+              <div class="metric-sub">Singke cash/bank</div>
             </div>
             <div class="report-metric-box">
               <div class="metric-label">Net Remaining Balance</div>
               <div class="metric-value" style="color:${grandDue > 0 ? '#DC2626' : '#16A34A'};">₹${formatCurrency(grandDue)}</div>
+              <div class="metric-sub">Outstanding balance</div>
             </div>
-          `;
-        }
+          </div>
 
-      } else if (reportType === 'wangkhei_store') {
-        if (titleEl) titleEl.textContent = 'WANGKHEI STORE DEDUCTION & SALES AUDIT STATEMENT';
-        if (subEl) subEl.textContent = `All sales billed to Wangkhei Store (Singke owned) auto-deducted from Singke due`;
+          <div class="table-responsive">
+            <table class="table-custom">
+              <thead>
+                <tr>
+                  <th>Farmer Name</th>
+                  <th>ID</th>
+                  <th>Phone</th>
+                  <th>Liftings</th>
+                  <th>Weight (Birds)</th>
+                  <th style="text-align:right;">Total Lifted (₹)</th>
+                  <th style="text-align:right;">Wangkhei Deducted (₹)</th>
+                  <th style="text-align:right;">Direct Settled (₹)</th>
+                  <th style="text-align:right;">Remaining Due (₹)</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${farmerRowsHtml || '<tr><td colspan="9" style="text-align:center;padding:20px;">No registered farmers found.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        `;
+
+      } else if (reportType === 'wangkhei_store' || reportType === 'wangkhei_deductions') {
+        if (titleEl) titleEl.textContent = 'WANGKHEI STORE DEDUCTIONS & SALES STATEMENT';
 
         const sales = await window.liftDeskDB.getAllSales();
         const wangkheiSales = sales.filter(s => s.isWangkheiSale || (s.storeName && s.storeName.toLowerCase().includes('wangkhei')));
         let grandWt = 0;
         let grandAmt = 0;
+        let wangkheiRowsHtml = '';
 
         wangkheiSales.forEach(s => {
           grandWt += (s.totalWeight || 0);
           grandAmt += (s.totalAmount || 0);
 
-          const tr = document.createElement('tr');
-          tr.innerHTML = `
-            <td>${s.saleDate}</td>
-            <td><strong>${s.invoiceNumber || s.id}</strong></td>
-            <td>${s.liftingId || '--'}</td>
-            <td>${s.farmerName || '--'}</td>
-            <td>${s.totalCages || (s.cages ? s.cages.length : 0)} cages</td>
-            <td>${formatKg(s.totalWeight)} kg</td>
-            <td>₹${formatCurrency(s.salesRate)}</td>
-            <td style="text-align:right;font-weight:700;color:#047857;">₹${formatCurrency(s.totalAmount)}</td>
-            <td>${s.remarks ? escapeHtml(s.remarks) : '--'}</td>
+          wangkheiRowsHtml += `
+            <tr>
+              <td>${s.saleDate}</td>
+              <td><strong>${escapeHtml(s.invoiceNumber || s.id)}</strong></td>
+              <td>${escapeHtml(s.liftingId || '--')}</td>
+              <td>${escapeHtml(s.farmerName || '--')}</td>
+              <td>${s.totalCages || (s.cages ? s.cages.length : 0)} cages</td>
+              <td>${formatKg(s.totalWeight)} kg</td>
+              <td>₹${formatCurrency(s.salesRate)}</td>
+              <td style="text-align:right;font-weight:700;color:#047857;">₹${formatCurrency(s.totalAmount)}</td>
+              <td style="font-size:11px;color:var(--text-muted);">${escapeHtml(s.remarks || '--')}</td>
+            </tr>
           `;
-          tbody.appendChild(tr);
         });
 
-        if (summaryBar) {
-          summaryBar.innerHTML = `
+        bodyContainer.innerHTML = `
+          <div style="display:grid; grid-template-columns:repeat(auto-fit, minmax(180px, 1fr)); gap:12px; margin-bottom:18px;">
             <div class="report-metric-box">
               <div class="metric-label">Total Wangkhei Sales</div>
               <div class="metric-value">${wangkheiSales.length}</div>
+              <div class="metric-sub">Store deliveries</div>
             </div>
             <div class="report-metric-box">
               <div class="metric-label">Total Weight Sold</div>
               <div class="metric-value">${formatKg(grandWt)} kg</div>
+              <div class="metric-sub">Live chicken weight</div>
             </div>
             <div class="report-metric-box">
               <div class="metric-label">Total Deducted from Singke</div>
               <div class="metric-value" style="color:#047857;">₹${formatCurrency(grandAmt)}</div>
+              <div class="metric-sub">Offset against lifting balance</div>
             </div>
-          `;
-        }
+          </div>
+
+          <div class="table-responsive">
+            <table class="table-custom">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Invoice #</th>
+                  <th>Lifting Ref</th>
+                  <th>Source Farmer</th>
+                  <th>Cages</th>
+                  <th>Weight (kg)</th>
+                  <th>Rate (₹/kg)</th>
+                  <th style="text-align:right;">Amount (₹)</th>
+                  <th>Remarks</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${wangkheiRowsHtml || '<tr><td colspan="9" style="text-align:center;padding:20px;">No Wangkhei store sales recorded.</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+        `;
       }
     } catch (e) {
       console.error('Error rendering Singke report preview:', e);
@@ -2805,17 +3020,17 @@
         return;
       }
 
-      const nameEl = document.getElementById('stmtFarmerName') || document.getElementById('modalStmtFarmerName');
-      const idEl = document.getElementById('stmtFarmerId') || document.getElementById('modalStmtFarmerId');
-      const phoneEl = document.getElementById('stmtFarmerPhone') || document.getElementById('modalStmtFarmerPhone');
+      const nameEl = document.getElementById('stmtFarmerName');
+      const idEl = document.getElementById('stmtFarmerId');
+      const phoneEl = document.getElementById('stmtFarmerPhone');
       if (nameEl) nameEl.textContent = rep.farmer.name;
       if (idEl) idEl.textContent = rep.farmer.id;
       if (phoneEl) phoneEl.textContent = rep.farmer.phone || 'N/A';
 
-      const remDueEl = document.getElementById('stmtRemainingDue') || document.getElementById('modalStmtRemainingDue');
-      const liftValEl = document.getElementById('stmtTotalLiftingValue') || document.getElementById('modalStmtTotalLifting');
-      const wkDedEl = document.getElementById('stmtWangkheiDeductions') || document.getElementById('modalStmtWangkheiDeducted');
-      const directSetEl = document.getElementById('stmtDirectSettlements') || document.getElementById('modalStmtSettled');
+      const remDueEl = document.getElementById('stmtRemainingDue');
+      const liftValEl = document.getElementById('stmtTotalLiftingValue');
+      const wkDedEl = document.getElementById('stmtWangkheiDeductions');
+      const directSetEl = document.getElementById('stmtDirectSettlements');
       const netRemEl = document.getElementById('stmtNetRemaining');
       const liftStatsEl = document.getElementById('stmtLiftingStats');
 
@@ -2826,15 +3041,13 @@
       if (netRemEl) netRemEl.textContent = `₹${formatCurrency(rep.remainingDue)}`;
       if (liftStatsEl) liftStatsEl.textContent = `${formatKg(rep.totalLiftingWeight || 0)} kg, ${rep.totalLiftingBirds || 0} birds`;
 
-      const tbody = document.getElementById('stmtTimelineTbody') || document.getElementById('modalStmtLedgerTbody');
-      const empty = document.getElementById('modalStmtEmpty');
+      const tbody = document.getElementById('stmtTimelineTbody');
 
       if (tbody) {
         tbody.innerHTML = '';
         if (rep.timeline.length === 0) {
-          if (empty) empty.style.display = 'block';
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--text-muted);">No lifting or settlement records found for this farmer.</td></tr>';
         } else {
-          if (empty) empty.style.display = 'none';
           rep.timeline.forEach(item => {
             const tr = document.createElement('tr');
             const isPlus = item.type === 'LIFTING';
@@ -2870,7 +3083,7 @@
       // Print Button
       const btnPrint = document.getElementById('btnStmtPrint');
       if (btnPrint) {
-        btnPrint.onclick = () => Native.print();
+        btnPrint.onclick = () => Native.print('MPF_Farmer_Statement', '#modalFarmerAccountingStatement .modal-body');
       }
 
       openModal('modalFarmerAccountingStatement');
@@ -2905,10 +3118,10 @@
 
   // --- MODAL EDIT REMARKS CONTROLLER ---
   window.openEditRemarksModal = function (entityType, entityId, currentRemarks, refText, subText) {
-    const typeEl = document.getElementById('editRemarksEntityType') || document.getElementById('editRemarksTargetType');
-    const idEl = document.getElementById('editRemarksEntityId') || document.getElementById('editRemarksTargetId');
-    const refEl = document.getElementById('editRemarksRefText') || document.getElementById('editRemarksRefDisplay');
-    const subEl = document.getElementById('editRemarksSubText') || document.getElementById('editRemarksSubDisplay');
+    const typeEl = document.getElementById('editRemarksEntityType');
+    const idEl = document.getElementById('editRemarksEntityId');
+    const refEl = document.getElementById('editRemarksRefText');
+    const subEl = document.getElementById('editRemarksSubText');
     const inputEl = document.getElementById('inputEditRemarksText');
 
     if (typeEl) typeEl.value = entityType;
@@ -2920,8 +3133,8 @@
   };
 
   async function saveEditedRemarks() {
-    const typeEl = document.getElementById('editRemarksEntityType') || document.getElementById('editRemarksTargetType');
-    const idEl = document.getElementById('editRemarksEntityId') || document.getElementById('editRemarksTargetId');
+    const typeEl = document.getElementById('editRemarksEntityType');
+    const idEl = document.getElementById('editRemarksEntityId');
     const inputEl = document.getElementById('inputEditRemarksText');
 
     const type = typeEl ? typeEl.value : '';
@@ -2965,8 +3178,8 @@
 
       const idEl = document.getElementById('editLiftingId');
       if (idEl) idEl.value = lifting.id;
-      const farmerEl = document.getElementById('editLiftingDetailsHeader') || document.getElementById('editLiftingFarmerDisplay');
-      const statsEl = document.getElementById('editLiftingWeightSub') || document.getElementById('editLiftingStatsDisplay');
+      const farmerEl = document.getElementById('editLiftingDetailsHeader');
+      const statsEl = document.getElementById('editLiftingWeightSub');
       if (farmerEl) farmerEl.textContent = `${lifting.farmerName || 'Farmer'} (${lifting.id})`;
       if (statsEl) statsEl.textContent = `${lifting.liftingDate} | ${lifting.totalCages} cages | ${formatKg(lifting.totalWeight)} kg | ${lifting.totalBirds} birds`;
       const rateInput = document.getElementById('inputEditLiftingRate');
@@ -3145,6 +3358,57 @@
       headerLock.style.display = 'none';
       state.pinHash = null;
     }
+
+    updateSettingsSupabaseCard();
+    AutoBackupManager.updateUI();
+  }
+
+  function updateSettingsSupabaseCard() {
+    const sb = window.supabaseBackend;
+    if (!sb) return;
+
+    const badge = document.getElementById('settingsSupabaseStatusBadge');
+    const text = document.getElementById('settingsSupabaseStatusText');
+    const lastSyncEl = document.getElementById('settingsSupabaseLastSync');
+
+    if (badge) {
+      if (sb.status === 'ONLINE') {
+        badge.className = 'badge badge-success';
+        badge.innerHTML = '🟢 Connected &amp; Synced';
+        badge.style.background = '#ECFDF5';
+        badge.style.color = '#047857';
+      } else if (sb.status === 'SCHEMA_PENDING') {
+        badge.className = 'badge badge-warning';
+        badge.innerHTML = '🟡 Tables Setup Needed';
+        badge.style.background = '#FEF3C7';
+        badge.style.color = '#B45309';
+      } else if (sb.status === 'SYNCING') {
+        badge.className = 'badge badge-warning';
+        badge.innerHTML = '🔄 Syncing...';
+        badge.style.background = '#FEF3C7';
+        badge.style.color = '#B45309';
+      } else if (sb.status === 'OFFLINE') {
+        badge.className = 'badge badge-secondary';
+        badge.innerHTML = '⚪ Offline Mode';
+        badge.style.background = '#F1F5F9';
+        badge.style.color = '#64748B';
+      } else {
+        badge.className = 'badge badge-danger';
+        badge.innerHTML = '🔴 Connection Issue';
+        badge.style.background = '#FEF2F2';
+        badge.style.color = '#DC2626';
+      }
+    }
+
+    if (text) {
+      text.textContent = sb.statusMessage || 'Supabase Cloud Backend Active.';
+    }
+
+    if (lastSyncEl) {
+      lastSyncEl.textContent = sb.lastSyncTime
+        ? `Last cloud sync: ${new Date(sb.lastSyncTime).toLocaleString()}`
+        : 'Last cloud sync: Pending initial synchronization';
+    }
   }
 
   // EXCEL EXPORT (Full multi-table .xlsx)
@@ -3306,6 +3570,203 @@
     reader.readAsText(file);
   }
 
+  // =========================================================================
+  // 24-HOUR PERIODIC AUTO-BACKUP ENGINE (Device Local Storage)
+  // =========================================================================
+  const AutoBackupManager = {
+    INTERVAL_MS: 24 * 60 * 60 * 1000, // 24 Hours
+    STORAGE_KEY: 'mpf_last_24h_auto_backup',
+    LATEST_BACKUP_KEY: 'mpf_auto_backup_latest',
+    METADATA_KEY: 'mpf_auto_backup_metadata',
+
+    getLastBackupTimestamp() {
+      const ts = localStorage.getItem(this.STORAGE_KEY);
+      return ts ? parseInt(ts, 10) : null;
+    },
+
+    getMetadata() {
+      try {
+        const raw = localStorage.getItem(this.METADATA_KEY);
+        return raw ? JSON.parse(raw) : null;
+      } catch (e) {
+        return null;
+      }
+    },
+
+    updateUI() {
+      const lastTimeEl = document.getElementById('autoBackupLastTime');
+      const badgeEl = document.getElementById('autoBackupStatusBadge');
+      if (!lastTimeEl) return;
+
+      const lastTs = this.getLastBackupTimestamp();
+      const meta = this.getMetadata();
+
+      if (!lastTs) {
+        lastTimeEl.textContent = 'Pending first backup (Automated)';
+        if (badgeEl) {
+          badgeEl.className = 'badge badge-warning';
+          badgeEl.textContent = 'Scheduled';
+        }
+      } else {
+        const d = new Date(lastTs);
+        const countInfo = meta && meta.totalRecords !== undefined ? ` (${meta.totalRecords} records)` : '';
+        lastTimeEl.textContent = `${d.toLocaleDateString()} ${d.toLocaleTimeString()}${countInfo}`;
+        if (badgeEl) {
+          badgeEl.className = 'badge badge-success';
+          badgeEl.textContent = 'Active (24h)';
+        }
+      }
+    },
+
+    async performBackup(isManual = false) {
+      if (!window.liftDeskDB) {
+        console.warn('Database not ready for auto-backup');
+        return;
+      }
+
+      try {
+        console.log('[AutoBackup] Generating 24-hour backup snapshot...');
+        const fullData = await window.liftDeskDB.exportFullDatabaseJSON();
+        const now = Date.now();
+        const dateStr = getTodayString();
+        const isoNow = new Date(now).toISOString();
+
+        const totalRecords =
+          (fullData.data.farmers || []).length +
+          (fullData.data.liftings || []).length +
+          (fullData.data.cages || []).length +
+          (fullData.data.stores || []).length +
+          (fullData.data.sales || []).length +
+          (fullData.data.payments || []).length +
+          (fullData.data.singke_settlements || []).length;
+
+        const meta = {
+          timestamp: now,
+          iso: isoNow,
+          totalRecords: totalRecords,
+          counts: {
+            farmers: (fullData.data.farmers || []).length,
+            liftings: (fullData.data.liftings || []).length,
+            cages: (fullData.data.cages || []).length,
+            stores: (fullData.data.stores || []).length,
+            sales: (fullData.data.sales || []).length,
+            payments: (fullData.data.payments || []).length,
+            settlements: (fullData.data.singke_settlements || []).length
+          }
+        };
+
+        fullData.autoBackupMetadata = meta;
+        const jsonStr = JSON.stringify(fullData);
+
+        // 1. Save to Device Native App Storage via Android Native Bridge
+        Native.saveToLocalFile('mpf_autobackup_latest.json', jsonStr);
+        Native.saveToLocalFile(`mpf_autobackup_${dateStr}.json`, jsonStr);
+
+        // 2. Save to Browser localStorage
+        try {
+          localStorage.setItem(this.LATEST_BACKUP_KEY, jsonStr);
+          localStorage.setItem(this.STORAGE_KEY, now.toString());
+          localStorage.setItem(this.METADATA_KEY, JSON.stringify(meta));
+        } catch (storageErr) {
+          console.warn('localStorage quota warning for full backup:', storageErr);
+          localStorage.setItem(this.STORAGE_KEY, now.toString());
+          localStorage.setItem(this.METADATA_KEY, JSON.stringify(meta));
+        }
+
+        // 3. Save snapshot in IndexedDB settings store
+        try {
+          await window.liftDeskDB.putSetting('auto_backup_24h_snapshot', {
+            meta: meta,
+            savedAt: isoNow
+          });
+        } catch (dbErr) {
+          console.warn('IndexedDB setting save:', dbErr);
+        }
+
+        this.updateUI();
+
+        if (isManual) {
+          Native.showToast(`✅ Auto-Backup saved to device (${totalRecords} records).`);
+        } else {
+          console.log(`[AutoBackup] 24-Hour auto-backup completed: ${totalRecords} records.`);
+        }
+      } catch (err) {
+        console.error('[AutoBackup] Error performing 24-hour backup:', err);
+        if (isManual) {
+          Native.showToast(`Auto-backup failed: ${err.message}`);
+        }
+      }
+    },
+
+    async checkAndRun() {
+      const lastTs = this.getLastBackupTimestamp();
+      const now = Date.now();
+
+      if (!lastTs || (now - lastTs) >= this.INTERVAL_MS) {
+        console.log('[AutoBackup] 24 hours elapsed since last backup. Executing auto-backup...');
+        await this.performBackup(false);
+      } else {
+        const hoursRemaining = Math.max(1, Math.round((this.INTERVAL_MS - (now - lastTs)) / (1000 * 60 * 60)));
+        console.log(`[AutoBackup] Next 24h backup due in ~${hoursRemaining} hours.`);
+      }
+      this.updateUI();
+    },
+
+    async restoreLatest() {
+      let backupStr = Native.readLocalFile('mpf_autobackup_latest.json');
+      if (!backupStr) {
+        backupStr = localStorage.getItem(this.LATEST_BACKUP_KEY);
+      }
+
+      if (!backupStr) {
+        Native.showToast('No auto-backup file found on this device.');
+        return;
+      }
+
+      try {
+        const backupObj = JSON.parse(backupStr);
+        const meta = backupObj.autoBackupMetadata || {};
+        const timeText = meta.iso ? new Date(meta.iso).toLocaleString() : 'Unknown date';
+        const recText = meta.totalRecords ? ` (${meta.totalRecords} records)` : '';
+
+        const msg = `Restore local database from Auto-Backup taken on ${timeText}${recText}?\n\nThis will restore all records from the device snapshot.`;
+        if (confirm(msg)) {
+          Native.showToast('Restoring database from auto-backup...');
+          await window.liftDeskDB.restoreFullDatabaseJSON(backupObj);
+          Native.showToast('Database successfully restored from auto-backup!');
+          loadDashboard();
+          loadSettingsView();
+        }
+      } catch (err) {
+        Native.showToast(`Failed to restore auto-backup: ${err.message}`);
+      }
+    },
+
+    exportBackupFile() {
+      let backupStr = Native.readLocalFile('mpf_autobackup_latest.json');
+      if (!backupStr) {
+        backupStr = localStorage.getItem(this.LATEST_BACKUP_KEY);
+      }
+
+      if (!backupStr) {
+        Native.showToast('No auto-backup available yet. Triggering backup...');
+        this.performBackup(true).then(() => {
+          this.exportBackupFile();
+        });
+        return;
+      }
+
+      const blob = new Blob([backupStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `MPF_AutoBackup_${getTodayString()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      Native.showToast('Auto-backup file exported.');
+    }
+  };
+
   async function factoryReset() {
     if (confirm('DANGER: This will delete ALL local data in MPF LiftDesk. Are you sure?')) {
       if (confirm('CONFIRM AGAIN: All liftings, cages, sales, stores, and farmers will be wiped clean.')) {
@@ -3436,6 +3897,25 @@
       if (savedPin) {
         state.pinHash = savedPin;
         lockApp();
+      }
+
+      // 24-Hour Periodic Auto-Backup check & background monitor
+      setTimeout(() => {
+        AutoBackupManager.checkAndRun().catch(err => console.warn('AutoBackup check error:', err));
+        setInterval(() => {
+          AutoBackupManager.checkAndRun().catch(err => console.warn('Periodic auto-backup check error:', err));
+        }, 15 * 60 * 1000); // Check every 15 minutes
+      }, 2500);
+
+      // Background auto-sync with Supabase Cloud
+      if (window.supabaseBackend) {
+        setTimeout(async () => {
+          const conn = await window.supabaseBackend.checkConnection();
+          if (conn.ok) {
+            console.log('Running background auto-sync with Supabase Cloud...');
+            window.supabaseBackend.syncAll().catch(err => console.warn('Background sync:', err));
+          }
+        }, 1500);
       }
     } catch (e) {
       console.error('Database/Security initialization error:', e);
@@ -3664,49 +4144,42 @@
     if (tabSingkeReports) tabSingkeReports.onclick = () => switchSingkeTab('reports');
 
     // Singke Date Filters
-    const btnApplySingkeDateFilter = document.getElementById('btnApplySingkeDateFilter');
+    const handleApplySingkeDate = () => {
+      const sEl = document.getElementById('inputSingkeStartDate');
+      const eEl = document.getElementById('inputSingkeEndDate');
+      state.singkeFilter.startDate = sEl ? sEl.value : '';
+      state.singkeFilter.endDate = eEl ? eEl.value : '';
+      switchSingkeTab(state.singkeFilter.activeTab || 'summary');
+    };
+
+    const btnApplySingkeDateFilter = document.getElementById('btnSingkeApplyFilter');
     if (btnApplySingkeDateFilter) {
-      btnApplySingkeDateFilter.onclick = () => {
-        state.singkeFilter.startDate = document.getElementById('singkeDateStart').value || '';
-        state.singkeFilter.endDate = document.getElementById('singkeDateEnd').value || '';
-        switchSingkeTab(state.singkeFilter.activeTab || 'summary');
-      };
+      btnApplySingkeDateFilter.onclick = handleApplySingkeDate;
     }
 
-    const btnSingkeQuickAll = document.getElementById('btnSingkeQuickAll');
+    const setSingkeDateRange = (start, end) => {
+      state.singkeFilter.startDate = start;
+      state.singkeFilter.endDate = end;
+      const s1 = document.getElementById('inputSingkeStartDate');
+      const e1 = document.getElementById('inputSingkeEndDate');
+      if (s1) s1.value = start;
+      if (e1) e1.value = end;
+      switchSingkeTab(state.singkeFilter.activeTab || 'summary');
+    };
+
+    const btnSingkeQuickAll = document.getElementById('btnSingkeRangeAll');
     if (btnSingkeQuickAll) {
-      btnSingkeQuickAll.onclick = () => {
-        state.singkeFilter.startDate = '';
-        state.singkeFilter.endDate = '';
-        document.getElementById('singkeDateStart').value = '';
-        document.getElementById('singkeDateEnd').value = '';
-        switchSingkeTab(state.singkeFilter.activeTab || 'summary');
-      };
+      btnSingkeQuickAll.onclick = () => setSingkeDateRange('', '');
     }
 
-    const btnSingkeQuickMonth = document.getElementById('btnSingkeQuickMonth');
+    const btnSingkeQuickMonth = document.getElementById('btnSingkeRangeThisMonth');
     if (btnSingkeQuickMonth) {
-      btnSingkeQuickMonth.onclick = () => {
-        const start = getFirstDayOfMonthString();
-        const end = getTodayString();
-        state.singkeFilter.startDate = start;
-        state.singkeFilter.endDate = end;
-        document.getElementById('singkeDateStart').value = start;
-        document.getElementById('singkeDateEnd').value = end;
-        switchSingkeTab(state.singkeFilter.activeTab || 'summary');
-      };
+      btnSingkeQuickMonth.onclick = () => setSingkeDateRange(getFirstDayOfMonthString(), getTodayString());
     }
 
-    const btnSingkeQuickToday = document.getElementById('btnSingkeQuickToday');
+    const btnSingkeQuickToday = document.getElementById('btnSingkeRangeToday');
     if (btnSingkeQuickToday) {
-      btnSingkeQuickToday.onclick = () => {
-        const today = getTodayString();
-        state.singkeFilter.startDate = today;
-        state.singkeFilter.endDate = today;
-        document.getElementById('singkeDateStart').value = today;
-        document.getElementById('singkeDateEnd').value = today;
-        switchSingkeTab(state.singkeFilter.activeTab || 'summary');
-      };
+      btnSingkeQuickToday.onclick = () => setSingkeDateRange(getTodayString(), getTodayString());
     }
 
     // Quick Settlement Form
@@ -3733,34 +4206,16 @@
     }
 
     // Ledger Filter Chips
-    document.querySelectorAll('#viewSingkeAccount .filter-chip[data-filter]').forEach(chip => {
+    document.querySelectorAll('#viewSingkeAccount [data-type], #viewSingkeAccount .filter-chip[data-filter]').forEach(chip => {
       chip.onclick = () => {
-        document.querySelectorAll('#viewSingkeAccount .filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
+        document.querySelectorAll('#viewSingkeAccount [data-type], #viewSingkeAccount .filter-chip[data-filter]').forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
-        state.singkeFilter.ledgerType = chip.getAttribute('data-filter') || 'all';
-        const typeSelect = document.getElementById('singkeLedgerFilterType') || document.getElementById('selectLedgerType');
-        if (typeSelect) typeSelect.value = state.singkeFilter.ledgerType;
+        state.singkeFilter.ledgerType = chip.getAttribute('data-type') || chip.getAttribute('data-filter') || 'all';
         renderSingkeLedger();
       };
     });
 
-    // Singke Ledger Filter & Search
-    const singkeLedgerFilterType = document.getElementById('singkeLedgerFilterType') || document.getElementById('selectLedgerType');
-    if (singkeLedgerFilterType) {
-      singkeLedgerFilterType.addEventListener('change', (e) => {
-        state.singkeFilter.ledgerType = e.target.value;
-        renderSingkeLedger();
-      });
-    }
-
-    const singkeLedgerSearch = document.getElementById('singkeLedgerSearch');
-    if (singkeLedgerSearch) {
-      singkeLedgerSearch.addEventListener('input', (e) => {
-        state.singkeFilter.ledgerSearch = e.target.value;
-        renderSingkeLedger();
-      });
-    }
-
+    // Singke Ledger Search
     const inputLedgerSearch = document.getElementById('inputLedgerSearch');
     if (inputLedgerSearch) {
       inputLedgerSearch.addEventListener('input', (e) => {
@@ -3773,7 +4228,7 @@
     if (btnSingkeExportExcel) btnSingkeExportExcel.onclick = exportSingkeLedgerToExcel;
 
     const btnSingkePrintReport = document.getElementById('btnSingkePrintReport');
-    if (btnSingkePrintReport) btnSingkePrintReport.onclick = () => Native.print();
+    if (btnSingkePrintReport) btnSingkePrintReport.onclick = () => Native.print('MPF_Singke_Ledger_Report', '#viewSingkeAccount');
 
     const btnSingkeShareWhatsApp = document.getElementById('btnSingkeShareWhatsApp');
     if (btnSingkeShareWhatsApp) btnSingkeShareWhatsApp.onclick = shareSingkeMasterWhatsApp;
@@ -3807,16 +4262,16 @@
     }
 
     // Reports Actions in Singke Module
-    const selectReportStatementType = document.getElementById('selectReportStatementType');
-    if (selectReportStatementType) {
-      selectReportStatementType.addEventListener('change', renderSingkeReportsPreview);
+    const selectReportType = document.getElementById('selectReportType');
+    if (selectReportType) {
+      selectReportType.addEventListener('change', renderSingkeReportsPreview);
     }
     const btnGenerateReportPreview = document.getElementById('btnGenerateReportPreview');
     if (btnGenerateReportPreview) {
       btnGenerateReportPreview.onclick = renderSingkeReportsPreview;
     }
     const btnReportActionPrint = document.getElementById('btnReportActionPrint');
-    if (btnReportActionPrint) btnReportActionPrint.onclick = () => Native.print();
+    if (btnReportActionPrint) btnReportActionPrint.onclick = () => Native.print('MPF_Settlement_Statement', '#reportPreviewCard');
     const btnReportActionWhatsApp = document.getElementById('btnReportActionWhatsApp');
     if (btnReportActionWhatsApp) btnReportActionWhatsApp.onclick = shareSingkeMasterWhatsApp;
     const btnReportActionExcel = document.getElementById('btnReportActionExcel');
@@ -3870,7 +4325,7 @@
     // Reports Actions
     document.getElementById('btnApplyAccountingFilter').onclick = loadAccountingView;
     document.getElementById('selectAccountingPeriod').addEventListener('change', loadAccountingView);
-    document.getElementById('btnPrintAccountingReport').onclick = () => Native.print();
+    document.getElementById('btnPrintAccountingReport').onclick = () => Native.print('MPF_Accounting_Report', '#accountingPrintSheet');
     document.getElementById('btnShareAccountingWhatsApp').onclick = async () => {
       const summary = await window.liftDeskDB.getAccountingSummary();
       const text = `*MPF LiftDesk - Business Statement*\n\n` +
@@ -3882,6 +4337,20 @@
         `Total Cages: ${summary.totalCagesLifted}`;
       Native.openWhatsApp('', text);
     };
+
+    // 24-Hour Auto-Backup Actions
+    const btnTriggerBackup = document.getElementById('btnTriggerAutoBackup');
+    if (btnTriggerBackup) {
+      btnTriggerBackup.onclick = () => AutoBackupManager.performBackup(true);
+    }
+    const btnRestoreBackup = document.getElementById('btnRestoreAutoBackup');
+    if (btnRestoreBackup) {
+      btnRestoreBackup.onclick = () => AutoBackupManager.restoreLatest();
+    }
+    const btnDownloadBackup = document.getElementById('btnDownloadAutoBackup');
+    if (btnDownloadBackup) {
+      btnDownloadBackup.onclick = () => AutoBackupManager.exportBackupFile();
+    }
 
     // Settings Actions
     document.getElementById('btnExportExcel').onclick = exportAllToExcel;
@@ -3897,6 +4366,162 @@
       e.target.value = '';
     });
     document.getElementById('btnFactoryReset').onclick = factoryReset;
+
+    // --- SUPABASE CLOUD BACKEND ACTIONS ---
+    function openSupabaseSetupModal() {
+      const txt = document.getElementById('txtSupabaseSqlScript');
+      if (txt && window.supabaseBackend) {
+        txt.value = window.supabaseBackend.getSqlSetupScript();
+      }
+      const alertBox = document.getElementById('supabaseSetupStatusAlert');
+      if (alertBox) {
+        alertBox.style.display = 'none';
+      }
+      openModal('modalSupabaseSetup');
+    }
+
+    const headerCloudBadge = document.getElementById('headerCloudSyncBadge');
+    if (headerCloudBadge) {
+      headerCloudBadge.onclick = () => {
+        if (window.supabaseBackend && window.supabaseBackend.status === 'SCHEMA_PENDING') {
+          openSupabaseSetupModal();
+        } else {
+          navigateTo('viewSettings');
+        }
+      };
+    }
+
+    const btnOpenSetup = document.getElementById('btnOpenSupabaseSetupModal');
+    if (btnOpenSetup) btnOpenSetup.onclick = openSupabaseSetupModal;
+
+    const btnSyncNow = document.getElementById('btnSupabaseSyncNow');
+    if (btnSyncNow) {
+      btnSyncNow.onclick = async () => {
+        try {
+          Native.showToast('Starting Supabase sync...');
+          await window.supabaseBackend.syncAll();
+          Native.showToast('Cloud sync completed successfully!');
+          updateSettingsSupabaseCard();
+          refreshCurrentActiveView();
+        } catch (e) {
+          Native.showToast(e.message || 'Sync failed.');
+          if (window.supabaseBackend && window.supabaseBackend.status === 'SCHEMA_PENDING') {
+            openSupabaseSetupModal();
+          }
+        }
+      };
+    }
+
+    const btnUpload = document.getElementById('btnSupabaseUpload');
+    if (btnUpload) {
+      btnUpload.onclick = async () => {
+        try {
+          Native.showToast('Uploading local database to Supabase...');
+          await window.supabaseBackend.uploadAllLocalData();
+          Native.showToast('All local data uploaded to Supabase!');
+          updateSettingsSupabaseCard();
+        } catch (e) {
+          Native.showToast(e.message || 'Upload failed.');
+          if (window.supabaseBackend && window.supabaseBackend.status === 'SCHEMA_PENDING') {
+            openSupabaseSetupModal();
+          }
+        }
+      };
+    }
+
+    const btnDownload = document.getElementById('btnSupabaseDownload');
+    if (btnDownload) {
+      btnDownload.onclick = async () => {
+        if (!confirm('Download and merge all data from Supabase Cloud into local database?')) return;
+        try {
+          Native.showToast('Downloading from Supabase Cloud...');
+          await window.supabaseBackend.downloadAllCloudData();
+          Native.showToast('Data downloaded from Supabase and merged locally!');
+          updateSettingsSupabaseCard();
+          refreshCurrentActiveView();
+        } catch (e) {
+          Native.showToast(e.message || 'Download failed.');
+          if (window.supabaseBackend && window.supabaseBackend.status === 'SCHEMA_PENDING') {
+            openSupabaseSetupModal();
+          }
+        }
+      };
+    }
+
+    const btnCopySql = document.getElementById('btnCopySqlScript');
+    if (btnCopySql) {
+      btnCopySql.onclick = () => {
+        if (!window.supabaseBackend) return;
+        const sql = window.supabaseBackend.getSqlSetupScript();
+        if (window.AndroidBridge && typeof window.AndroidBridge.copyToClipboard === 'function') {
+          window.AndroidBridge.copyToClipboard('Supabase SQL Setup', sql);
+        } else if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(sql).then(() => {
+            Native.showToast('SQL Setup Script copied to clipboard!');
+          }).catch(() => {
+            Native.showToast('Failed to copy. Please copy from text area.');
+          });
+        } else {
+          const txt = document.getElementById('txtSupabaseSqlScript');
+          if (txt) {
+            txt.select();
+            document.execCommand('copy');
+            Native.showToast('SQL Setup Script copied to clipboard!');
+          }
+        }
+      };
+    }
+
+    const btnVerifySchema = document.getElementById('btnVerifySupabaseSchema');
+    if (btnVerifySchema) {
+      btnVerifySchema.onclick = async () => {
+        const alertBox = document.getElementById('supabaseSetupStatusAlert');
+        if (alertBox) {
+          alertBox.style.display = 'block';
+          alertBox.style.background = '#EFF6FF';
+          alertBox.style.color = '#1D4ED8';
+          alertBox.innerHTML = 'Verifying Supabase connection and tables...';
+        }
+        Native.showToast('Verifying Supabase tables...');
+        const res = await window.supabaseBackend.checkConnection();
+        if (res.ok) {
+          if (alertBox) {
+            alertBox.style.background = '#ECFDF5';
+            alertBox.style.color = '#047857';
+            alertBox.innerHTML = '✅ All tables verified! Supabase is fully operational. Syncing initial data...';
+          }
+          Native.showToast('Supabase tables verified! Syncing data...');
+          try {
+            await window.supabaseBackend.syncAll();
+            Native.showToast('Sync complete! Supabase is fully configured.');
+            setTimeout(() => closeModal('modalSupabaseSetup'), 1500);
+          } catch (e) {
+            console.warn(e);
+          }
+        } else if (res.status === 'SCHEMA_PENDING') {
+          if (alertBox) {
+            alertBox.style.background = '#FEF2F2';
+            alertBox.style.color = '#DC2626';
+            alertBox.innerHTML = '⚠️ Tables not detected yet. Make sure you pasted the SQL in your Supabase SQL Editor and clicked RUN.';
+          }
+          Native.showToast('Tables not found yet. Please click RUN in Supabase SQL Editor.');
+        } else {
+          if (alertBox) {
+            alertBox.style.background = '#FEF2F2';
+            alertBox.style.color = '#DC2626';
+            alertBox.innerHTML = `⚠️ Connection notice: ${window.supabaseBackend.statusMessage}`;
+          }
+          Native.showToast(window.supabaseBackend.statusMessage);
+        }
+        updateSettingsSupabaseCard();
+      };
+    }
+
+    if (window.supabaseBackend) {
+      window.supabaseBackend.onStatusChange(() => {
+        updateSettingsSupabaseCard();
+      });
+    }
 
     // PIN Setup Actions
     document.getElementById('btnConfigurePin').onclick = () => {

@@ -101,6 +101,16 @@ class LiftDeskDatabase {
     return this.initPromise;
   }
 
+  _notifyCloud(table, action, recordOrId) {
+    if (window.supabaseBackend && typeof window.supabaseBackend.pushChange === 'function') {
+      try {
+        window.supabaseBackend.pushChange(table, action, recordOrId);
+      } catch (e) {
+        console.warn('Cloud notify non-fatal error:', e);
+      }
+    }
+  }
+
   // Generate formatted unique sequential IDs
   async getNextId(prefix) {
     await this.init();
@@ -166,7 +176,10 @@ class LiftDeskDatabase {
       const tx = this.db.transaction('farmers', 'readwrite');
       const store = tx.objectStore('farmers');
       const req = store.add(record);
-      req.onsuccess = () => resolve(record);
+      req.onsuccess = () => {
+        this._notifyCloud('farmers', 'UPSERT', record);
+        resolve(record);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -190,7 +203,10 @@ class LiftDeskDatabase {
         farmer.phone = cleanPhone;
         farmer.updatedAt = new Date().toISOString();
         const putReq = store.put(farmer);
-        putReq.onsuccess = () => resolve(farmer);
+        putReq.onsuccess = () => {
+          this._notifyCloud('farmers', 'UPSERT', farmer);
+          resolve(farmer);
+        };
         putReq.onerror = () => reject(putReq.error);
       };
       getReq.onerror = () => reject(getReq.error);
@@ -295,7 +311,10 @@ class LiftDeskDatabase {
       const tx = this.db.transaction('farmers', 'readwrite');
       const store = tx.objectStore('farmers');
       const req = store.delete(farmerId);
-      req.onsuccess = () => resolve(true);
+      req.onsuccess = () => {
+        this._notifyCloud('farmers', 'DELETE', farmerId);
+        resolve(true);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -377,7 +396,13 @@ class LiftDeskDatabase {
         cageStore.put(cage);
       }
 
-      tx.oncomplete = () => resolve({ lifting: liftingRecord, cages: cagesToSave });
+      tx.oncomplete = () => {
+        this._notifyCloud('liftings', 'UPSERT', liftingRecord);
+        for (const cage of cagesToSave) {
+          this._notifyCloud('cages', 'UPSERT', cage);
+        }
+        resolve({ lifting: liftingRecord, cages: cagesToSave });
+      };
       tx.onerror = () => reject(tx.error);
     });
   }
@@ -537,7 +562,13 @@ class LiftDeskDatabase {
         cageStore.delete(c.id);
       }
 
-      tx.oncomplete = () => resolve(true);
+      tx.oncomplete = () => {
+        this._notifyCloud('liftings', 'DELETE', liftingId);
+        for (const c of cages) {
+          this._notifyCloud('cages', 'DELETE', c.id);
+        }
+        resolve(true);
+      };
       tx.onerror = () => reject(tx.error);
     });
   }
@@ -567,7 +598,10 @@ class LiftDeskDatabase {
       const tx = this.db.transaction('stores', 'readwrite');
       const store = tx.objectStore('stores');
       const req = store.add(storeRecord);
-      req.onsuccess = () => resolve(storeRecord);
+      req.onsuccess = () => {
+        this._notifyCloud('stores', 'UPSERT', storeRecord);
+        resolve(storeRecord);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -597,7 +631,10 @@ class LiftDeskDatabase {
         record.openingDue = parseFloat(openingDue) || 0;
         record.updatedAt = new Date().toISOString();
         const putReq = store.put(record);
-        putReq.onsuccess = () => resolve(record);
+        putReq.onsuccess = () => {
+          this._notifyCloud('stores', 'UPSERT', record);
+          resolve(record);
+        };
         putReq.onerror = () => reject(putReq.error);
       };
       getReq.onerror = () => reject(getReq.error);
@@ -678,7 +715,10 @@ class LiftDeskDatabase {
       const tx = this.db.transaction('stores', 'readwrite');
       const store = tx.objectStore('stores');
       const req = store.delete(storeId);
-      req.onsuccess = () => resolve(true);
+      req.onsuccess = () => {
+        this._notifyCloud('stores', 'DELETE', storeId);
+        resolve(true);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -899,7 +939,13 @@ class LiftDeskDatabase {
         cagesStore.put(c);
       }
 
-      tx.oncomplete = () => resolve(saleRecord);
+      tx.oncomplete = () => {
+        this._notifyCloud('sales', 'UPSERT', saleRecord);
+        for (const item of resolvedCages) {
+          this._notifyCloud('cages', 'UPSERT', item.cageRecord);
+        }
+        resolve(saleRecord);
+      };
       tx.onerror = () => reject(tx.error);
     });
   }
@@ -1019,7 +1065,10 @@ class LiftDeskDatabase {
       const tx = this.db.transaction('payments', 'readwrite');
       const storeObj = tx.objectStore('payments');
       const req = storeObj.put(record);
-      req.onsuccess = () => resolve(record);
+      req.onsuccess = () => {
+        this._notifyCloud('payments', 'UPSERT', record);
+        resolve(record);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -1070,7 +1119,10 @@ class LiftDeskDatabase {
       const tx = this.db.transaction('payments', 'readwrite');
       const store = tx.objectStore('payments');
       const req = store.delete(paymentId);
-      req.onsuccess = () => resolve(true);
+      req.onsuccess = () => {
+        this._notifyCloud('payments', 'DELETE', paymentId);
+        resolve(true);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -1494,7 +1546,10 @@ class LiftDeskDatabase {
       const tx = this.db.transaction('singke_settlements', 'readwrite');
       const store = tx.objectStore('singke_settlements');
       const req = store.put(record);
-      req.onsuccess = () => resolve(record);
+      req.onsuccess = () => {
+        this._notifyCloud('singke_settlements', 'UPSERT', record);
+        resolve(record);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -1524,7 +1579,10 @@ class LiftDeskDatabase {
         if (updateData.remarks !== undefined) record.remarks = (updateData.remarks || '').trim();
         record.updatedAt = new Date().toISOString();
         const putReq = store.put(record);
-        putReq.onsuccess = () => resolve(record);
+        putReq.onsuccess = () => {
+          this._notifyCloud('singke_settlements', 'UPSERT', record);
+          resolve(record);
+        };
         putReq.onerror = () => reject(putReq.error);
       };
       getReq.onerror = () => reject(getReq.error);
@@ -1555,7 +1613,10 @@ class LiftDeskDatabase {
       const tx = this.db.transaction('singke_settlements', 'readwrite');
       const store = tx.objectStore('singke_settlements');
       const req = store.delete(id);
-      req.onsuccess = () => resolve(true);
+      req.onsuccess = () => {
+        this._notifyCloud('singke_settlements', 'DELETE', id);
+        resolve(true);
+      };
       req.onerror = () => reject(req.error);
     });
   }
@@ -1616,7 +1677,10 @@ class LiftDeskDatabase {
         lifting.remarks = (remarks || '').trim();
         lifting.updatedAt = new Date().toISOString();
         const putReq = store.put(lifting);
-        putReq.onsuccess = () => resolve(lifting);
+        putReq.onsuccess = () => {
+          this._notifyCloud('liftings', 'UPSERT', lifting);
+          resolve(lifting);
+        };
         putReq.onerror = () => reject(putReq.error);
       };
       getReq.onerror = () => reject(getReq.error);
@@ -1639,7 +1703,10 @@ class LiftDeskDatabase {
         if (remarks !== undefined) lifting.remarks = (remarks || '').trim();
         lifting.updatedAt = new Date().toISOString();
         const putReq = store.put(lifting);
-        putReq.onsuccess = () => resolve(lifting);
+        putReq.onsuccess = () => {
+          this._notifyCloud('liftings', 'UPSERT', lifting);
+          resolve(lifting);
+        };
         putReq.onerror = () => reject(putReq.error);
       };
       getReq.onerror = () => reject(getReq.error);
@@ -1658,7 +1725,10 @@ class LiftDeskDatabase {
         sale.remarks = (remarks || '').trim();
         sale.updatedAt = new Date().toISOString();
         const putReq = store.put(sale);
-        putReq.onsuccess = () => resolve(sale);
+        putReq.onsuccess = () => {
+          this._notifyCloud('sales', 'UPSERT', sale);
+          resolve(sale);
+        };
         putReq.onerror = () => reject(putReq.error);
       };
       getReq.onerror = () => reject(getReq.error);
@@ -2381,6 +2451,56 @@ class LiftDeskDatabase {
     return new Promise((resolve, reject) => {
       const tx = this.db.transaction('settings', 'readwrite');
       const req = tx.objectStore('settings').put({ key, value });
+      req.onsuccess = () => {
+        this._notifyCloud('settings', 'UPSERT', { key, value, updatedAt: new Date().toISOString() });
+        resolve(true);
+      };
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async exportDatabaseToJson() {
+    const full = await this.exportFullDatabaseJSON();
+    return full.data;
+  }
+
+  async importDatabaseFromJson(tablesData, options = { merge: true }) {
+    await this.init();
+    const stores = ['farmers', 'liftings', 'cages', 'stores', 'sales', 'payments', 'settings', 'singke_settlements'];
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(stores, 'readwrite');
+      for (const storeName of stores) {
+        const store = tx.objectStore(storeName);
+        if (!options.merge) {
+          store.clear();
+        }
+        const records = (tablesData && tablesData[storeName]) || [];
+        for (const item of records) {
+          store.put(item);
+        }
+      }
+      tx.oncomplete = () => resolve(true);
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async rawUpsert(storeName, record) {
+    await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const req = store.put(record);
+      req.onsuccess = () => resolve(true);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async rawDelete(storeName, key) {
+    await this.init();
+    return new Promise((resolve, reject) => {
+      const tx = this.db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+      const req = store.delete(key);
       req.onsuccess = () => resolve(true);
       req.onerror = () => reject(req.error);
     });

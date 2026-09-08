@@ -20,8 +20,11 @@
             <div class="brand-subtitle">Broiler Lifting &amp; Supply</div>
           </div>
         </div>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;">
-          <span class="beta-badge">BETA MODE</span>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button id="headerCloudSyncBadge" class="badge badge-secondary" style="cursor:pointer;border:1px solid var(--border-color);padding:3px 8px;font-size:11px;font-weight:600;display:inline-flex;align-items:center;gap:4px;border-radius:12px;" title="Supabase Cloud Sync Status">☁️ Syncing...</button>
+            <span class="beta-badge">BETA MODE</span>
+          </div>
           <span style="font-size:10px;font-family:monospace;color:var(--text-light);">v2.4.1</span>
         </div>
       </div>
@@ -964,6 +967,40 @@
           </div>
         </div>
 
+        <!-- Supabase Cloud Backend Card -->
+        <div class="card" style="border:1.5px solid #CBD5E1;background:linear-gradient(180deg, #FFFFFF 0%, #F8FAFC 100%);">
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:20px;">☁️</span>
+              <span>Supabase Cloud Backend</span>
+            </div>
+            <span id="settingsSupabaseStatusBadge" class="badge badge-secondary" style="font-size:11px;padding:4px 10px;border-radius:12px;">Checking...</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-muted);margin-bottom:8px;font-family:monospace;">
+            Project Ref: <strong style="color:var(--text-main);">tkbjsvrhysfadcczluzj</strong> &bull; Host: <span style="color:var(--text-main);">tkbjsvrhysfadcczluzj.supabase.co</span>
+          </div>
+          <p id="settingsSupabaseStatusText" style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">
+            Initializing Supabase Cloud connection...
+          </p>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary btn-sm" id="btnSupabaseSyncNow">
+              🔄 Sync Now
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnSupabaseUpload">
+              ⬆️ Upload Local to Cloud
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnSupabaseDownload">
+              ⬇️ Download Cloud to Local
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnOpenSupabaseSetupModal">
+              📋 Setup SQL Script
+            </button>
+          </div>
+          <div id="settingsSupabaseLastSync" style="font-size:11px;color:var(--text-light);margin-top:10px;">
+            Last synced: Never
+          </div>
+        </div>
+
         <!-- PIN Security Card -->
         <div class="card">
           <div class="card-title">
@@ -1004,6 +1041,36 @@
               Import from Excel
               <input type="file" id="fileImportExcel" accept=".xlsx,.xls" style="display:none;">
             </label>
+          </div>
+        </div>
+
+        <!-- 24-Hour Periodic Auto-Backup to Device Local Storage -->
+        <div class="card" style="border:1.5px solid #0284C7;background:linear-gradient(180deg, #F0F9FF 0%, #FFFFFF 100%);">
+          <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:20px;">🛡️</span>
+              <span>24-Hour Periodic Auto-Backup</span>
+            </div>
+            <span id="autoBackupStatusBadge" class="badge badge-success" style="font-size:11px;padding:4px 10px;border-radius:12px;">Active (24h)</span>
+          </div>
+          <p style="font-size:13px;color:var(--text-muted);margin-bottom:12px;">
+            Automatically saves the complete app state to your device's local storage every 24 hours. Offline-first, automated, and permanent.
+          </p>
+          <div style="font-size:12px;color:var(--text-main);margin-bottom:12px;background:#FFFFFF;padding:10px 14px;border-radius:8px;border:1px solid #BAE6FD;">
+            <div>📅 <strong>Last Auto-Backup:</strong> <span id="autoBackupLastTime">Never</span></div>
+            <div style="margin-top:4px;">⏱️ <strong>Schedule:</strong> Every 24 hours (Automated periodic check)</div>
+            <div style="margin-top:4px;">💾 <strong>Storage:</strong> Device Internal Storage &amp; Local Database Cache</div>
+          </div>
+          <div style="display:flex;gap:10px;flex-wrap:wrap;">
+            <button type="button" class="btn btn-primary btn-sm" id="btnTriggerAutoBackup">
+              ⚡ Backup to Device Now
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnRestoreAutoBackup">
+              🔄 Restore Last Auto-Backup
+            </button>
+            <button type="button" class="btn btn-outline btn-sm" id="btnDownloadAutoBackup">
+              📥 Export Auto-Backup (.json)
+            </button>
           </div>
         </div>
 
@@ -1241,6 +1308,7 @@
             <div class="card-title" style="flex-wrap:wrap; gap:10px; margin-bottom:12px;">
               <div>
                 <span>Complete Singke Running Ledger</span>
+                <span id="singkeLedgerCountBadge" class="badge" style="font-size:12px;margin-left:6px;background:#F1F5F9;padding:2px 8px;border-radius:12px;">0 entries</span>
                 <div style="font-size:12px; color:var(--text-muted); font-weight:normal;">Real-time chronological audit trail of all liftings, Wangkhei deductions, and payouts</div>
               </div>
               <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -1275,6 +1343,15 @@
                 <tbody id="singkeLedgerTbody">
                   <!-- Dynamic rows -->
                 </tbody>
+                <tfoot style="background:#F8FAFC; border-top:2px solid #CBD5E1; font-weight:700;">
+                  <tr>
+                    <td colspan="5" style="text-align:right; font-size:12px;">Period Ledger Totals:</td>
+                    <td style="text-align:right; color:#1E40AF; font-size:12px;" id="singkeLedgerTotalCredit">₹0.00</td>
+                    <td style="text-align:right; color:#047857; font-size:12px;" id="singkeLedgerTotalDebit">₹0.00</td>
+                    <td style="text-align:right; font-weight:800; font-size:12px;" id="singkeLedgerFinalBalance">₹0.00</td>
+                    <td colspan="2"></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
             <div id="singkeLedgerEmpty" class="empty-state" style="display:none;">
@@ -1373,6 +1450,7 @@
             <div class="card-title" style="flex-wrap:wrap; gap:10px;">
               <div>
                 <span>Farmer Lifting &amp; Payment Accounts</span>
+                <span id="farmerAccountsCountBadge" class="badge" style="font-size:12px;margin-left:6px;background:#F1F5F9;padding:2px 8px;border-radius:12px;">0 farmers</span>
                 <div style="font-size:12px; color:var(--text-muted); font-weight:normal;">Individual lifting amounts, Wangkhei deductions, settlements, and remaining due per farmer</div>
               </div>
               <div style="display:flex; gap:8px;">
@@ -1927,7 +2005,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline" data-close="modalEditRemarks">Cancel</button>
-          <button type="submit" class="btn btn-primary">Save Remarks</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveEditedRemarks">Save Remarks</button>
         </div>
       </form>
     </div>
@@ -1965,7 +2043,7 @@
         </div>
         <div class="modal-footer">
           <button type="button" class="btn btn-outline" data-close="modalEditLiftingRate">Cancel</button>
-          <button type="submit" class="btn btn-primary">Update Lifting</button>
+          <button type="submit" class="btn btn-primary" id="btnSaveEditedLiftingRate">Update Lifting</button>
         </div>
       </form>
     </div>
@@ -2051,6 +2129,44 @@
   </div>
 
   <!-- ======================================================= -->
+  <!-- MODAL: SUPABASE CLOUD DATABASE SETUP                    -->
+  <!-- ======================================================= -->
+  <div id="modalSupabaseSetup" class="modal-backdrop">
+    <div class="modal-dialog" style="max-width:580px;">
+      <div class="modal-header">
+        <div class="modal-title">☁️ Supabase Cloud Database Setup</div>
+        <button type="button" class="btn-close-modal" data-close="modalSupabaseSetup">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="background:var(--bg-light);border-left:4px solid var(--primary-color);padding:12px;border-radius:4px;margin-bottom:14px;font-size:13px;">
+          <div style="font-weight:700;margin-bottom:4px;color:var(--text-main);">Quick 1-Minute Supabase Database Setup:</div>
+          <ol style="margin-left:18px;margin-bottom:0;padding-left:0;line-height:1.6;">
+            <li>Open the <a href="https://supabase.com/dashboard/project/tkbjsvrhysfadcczluzj/sql/new" target="_blank" style="color:var(--primary-color);font-weight:700;">Supabase SQL Editor</a>.</li>
+            <li>Click <strong>Copy SQL Script</strong> below and paste it into the editor.</li>
+            <li>Click <strong>Run</strong> in Supabase, then click <strong>Verify &amp; Sync Now</strong> below.</li>
+          </ol>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <label class="form-label" style="margin-bottom:0;font-weight:700;">PostgreSQL DDL &amp; RLS Setup Script:</label>
+          <button type="button" class="btn btn-outline btn-sm" id="btnCopySqlScript" style="font-size:12px;padding:4px 10px;">
+            📋 Copy SQL Script
+          </button>
+        </div>
+        <textarea id="txtSupabaseSqlScript" class="form-input" style="font-family:monospace;font-size:11px;height:180px;background:#0F172A;color:#38BDF8;line-height:1.4;" readonly></textarea>
+
+        <div id="supabaseSetupStatusAlert" style="margin-top:12px;padding:10px 12px;border-radius:6px;font-size:12px;display:none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" data-close="modalSupabaseSetup">Close</button>
+        <button type="button" class="btn btn-primary" id="btnVerifySupabaseSchema">
+          🔄 Verify &amp; Sync Now
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================= -->
   <!-- MODAL: PIN SETUP                                        -->
   <!-- ======================================================= -->
   <div id="modalPinSetup" class="modal-backdrop">
@@ -2110,6 +2226,10 @@
       </div>
     </div>
   </div>
+
+  <!-- SUPABASE SDK & BACKEND SERVICE -->
+  <script src="js/supabase.min.js"></script>
+  <script src="js/supabaseBackend.js"></script>
 
   <!-- MAIN SCRIPT -->
   <script src="js/db.js"></script>
