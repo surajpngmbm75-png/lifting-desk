@@ -2,17 +2,160 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#0f172a">
   <title>MPF LiftDesk</title>
-  <meta http-equiv="refresh" content="0; url=app/src/main/assets/index.html">
-  <script>
-    window.location.replace('app/src/main/assets/index.html');
-  </script>
+  <style>
+    html, body { margin:0; padding:0; width:100%; height:100%; overflow:hidden; background:#f8fafc; }
+    #mpfAppFrame { width:100%; height:100%; border:0; display:block; }
+  </style>
 </head>
 <body>
-  <noscript>
-    <p><a href="app/src/main/assets/index.html">Open MPF LiftDesk</a></p>
-  </noscript>
+  <iframe id="mpfAppFrame" src="app/src/main/assets/index.html" title="MPF LiftDesk"></iframe>
+  <script>
+    (function () {
+      'use strict';
+
+      const STORAGE_KEY = 'mpf_singke_previous_due';
+      const frame = document.getElementById('mpfAppFrame');
+
+      function money(value) {
+        const n = parseFloat(value) || 0;
+        return n.toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      }
+
+      function getPreviousDue(win) {
+        const n = parseFloat(win.localStorage.getItem(STORAGE_KEY) || '0');
+        return Number.isFinite(n) ? n : 0;
+      }
+
+      function setPreviousDue(win, value) {
+        const n = Math.max(0, parseFloat(value) || 0);
+        win.localStorage.setItem(STORAGE_KEY, String(Math.round(n * 100) / 100));
+        return n;
+      }
+
+      function injectPreviousDueUI(win) {
+        const doc = win.document;
+        if (doc.getElementById('singkePreviousDueWebCard')) return;
+
+        const hero = doc.getElementById('singkeHeroRemainingDue');
+        if (!hero) return;
+
+        let targetCard = hero.closest('.card');
+        if (!targetCard) targetCard = hero.parentElement;
+        if (!targetCard || !targetCard.parentElement) return;
+
+        const card = doc.createElement('div');
+        card.id = 'singkePreviousDueWebCard';
+        card.className = 'card';
+        card.style.cssText = 'margin-bottom:16px;border:1px solid #BFDBFE;background:#EFF6FF;padding:14px;';
+        card.innerHTML = `
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;">
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#1E3A8A;">Previous Due Payable to Singke</div>
+              <div style="font-size:11px;color:#475569;margin-top:2px;">Opening balance carried forward before current lifting transactions.</div>
+            </div>
+            <div style="font-size:20px;font-weight:900;color:#1E40AF;">₹<span id="singkePreviousDueDisplay">0.00</span></div>
+          </div>
+          <div style="display:flex;align-items:end;gap:8px;margin-top:12px;flex-wrap:wrap;">
+            <div style="flex:1;min-width:180px;">
+              <label for="singkePreviousDueInput" style="display:block;font-size:11px;font-weight:700;color:#475569;margin-bottom:4px;">Previous Due Amount (₹)</label>
+              <input id="singkePreviousDueInput" type="number" min="0" step="0.01" class="form-input" placeholder="0.00">
+            </div>
+            <button id="btnSaveSingkePreviousDue" type="button" class="btn btn-primary btn-sm">Save Previous Due</button>
+          </div>
+          <div style="font-size:11px;color:#64748B;margin-top:8px;">Remaining Due = Previous Due + Current Lifting Payable − Wangkhei Deductions − Other Settlements</div>
+        `;
+
+        targetCard.parentElement.insertBefore(card, targetCard);
+
+        const input = doc.getElementById('singkePreviousDueInput');
+        const display = doc.getElementById('singkePreviousDueDisplay');
+        const saveBtn = doc.getElementById('btnSaveSingkePreviousDue');
+        const current = getPreviousDue(win);
+        input.value = current ? current.toFixed(2) : '';
+        display.textContent = money(current);
+
+        saveBtn.addEventListener('click', async function () {
+          const value = setPreviousDue(win, input.value);
+          display.textContent = money(value);
+          if (win.Native && typeof win.Native.showToast === 'function') {
+            win.Native.showToast('Previous due to Singke saved.');
+          }
+          if (typeof win.navigateTo === 'function') {
+            win.navigateTo('viewSingkeAccount');
+          }
+        });
+      }
+
+      function patchDatabase(win) {
+        const db = win.liftDeskDB;
+        if (!db || db.__previousDuePatched || typeof db.getSingkeAccountSummary !== 'function') return false;
+
+        const originalSummary = db.getSingkeAccountSummary.bind(db);
+        db.getSingkeAccountSummary = async function (startDate, endDate) {
+          const summary = await originalSummary(startDate, endDate);
+          const previousDue = getPreviousDue(win);
+          const basePayable = summary.totalPayableToSingke !== undefined
+            ? (parseFloat(summary.totalPayableToSingke) || 0)
+            : (parseFloat(summary.totalLiftingAmount) || 0);
+          const deductions = parseFloat(summary.totalWangkheiDeductions !== undefined ? summary.totalWangkheiDeductions : summary.totalWangkheiSalesAmount) || 0;
+          const settlements = parseFloat(summary.totalOtherSettlements) || 0;
+          const totalPayable = previousDue + basePayable;
+          const remaining = totalPayable - deductions - settlements;
+
+          return Object.assign({}, summary, {
+            previousDueToSingke: Math.round(previousDue * 100) / 100,
+            currentLiftingPayableToSingke: Math.round(basePayable * 100) / 100,
+            totalPayableToSingke: Math.round(totalPayable * 100) / 100,
+            remainingDueToSingke: Math.round(remaining * 100) / 100
+          });
+        };
+
+        db.__previousDuePatched = true;
+        return true;
+      }
+
+      function refreshDashboardWidgets(win) {
+        const db = win.liftDeskDB;
+        if (!db || typeof db.getSingkeAccountSummary !== 'function') return;
+        db.getSingkeAccountSummary(null, null).then(function (summary) {
+          const doc = win.document;
+          const payable = doc.getElementById('dashSingkePayable');
+          const remaining = doc.getElementById('dashSingkeRemainingDue');
+          if (payable) payable.textContent = money(summary.totalPayableToSingke);
+          if (remaining) remaining.textContent = money(summary.remainingDueToSingke);
+        }).catch(function () {});
+      }
+
+      function initialize() {
+        const win = frame.contentWindow;
+        if (!win || !win.document) return;
+
+        let attempts = 0;
+        const timer = setInterval(function () {
+          attempts += 1;
+          const patched = patchDatabase(win);
+          injectPreviousDueUI(win);
+          if (patched) {
+            refreshDashboardWidgets(win);
+            if (typeof win.navigateTo === 'function') win.navigateTo('viewHome');
+          }
+          if ((patched && win.document.getElementById('singkePreviousDueWebCard')) || attempts > 80) {
+            clearInterval(timer);
+          }
+        }, 250);
+
+        const observer = new MutationObserver(function () {
+          injectPreviousDueUI(win);
+          refreshDashboardWidgets(win);
+        });
+        observer.observe(win.document.documentElement, { childList:true, subtree:true });
+      }
+
+      frame.addEventListener('load', initialize);
+    })();
+  </script>
 </body>
 </html>
